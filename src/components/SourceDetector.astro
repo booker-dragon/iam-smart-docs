@@ -1,0 +1,24 @@
+---
+// Interactive: show the `source` value for the browser viewing the page.
+---
+
+<ist-source class="ist not-content">
+  <p class="ist-status">This browser maps to <code data-el="value">…</code> <small data-el="ua"></small></p>
+  <p class="ist-note">
+    Detection mirrors the logic in the <a href="/tools/">developer tools</a>: Android and iOS browsers are identified from the user agent, everything else is
+    <code>PC_Browser</code>. Pages running inside the iAM Smart in-app browser should send <code>Android_IMS_InAppBrowser</code> / <code>iOS_IMS_InAppBrowser</code>
+    (see the iAM Smart In-App Browser Integration Technical Reference).
+  </p>
+</ist-source>
+
+<script>
+  import { detectSource } from '../lib/ui.js'
+
+  class IstSource extends HTMLElement {
+    connectedCallback() {
+      ;(this.querySelector('[data-el=value]') as HTMLElement).textContent = detectSource()
+      ;(this.querySelector('[data-el=ua]') as HTMLElement).textContent = `(${navigator.userAgent.slice(0, 120)})`
+    }
+  }
+  if (!customElements.get('ist-source')) customElements.define('ist-source', IstSource)
+</script>

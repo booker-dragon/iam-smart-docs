@@ -1,0 +1,54 @@
+---
+// Interactive: compute HKICHash (SHA-256 of the HKIC identifier without check digit, Base64).
+interface Props {
+  showTitle?: boolean
+}
+const { showTitle = true } = Astro.props
+---
+
+<ist-hkic class="ist not-content">
+  {showTitle && <h3 class="ist-title" id="hkichash-calculator">HKICHash calculator</h3>}
+  <p class="ist-note">
+    <code>HKICHash</code> = Base64(SHA-256(identifier)), where the identifier excludes the check digit — <code>A123456(7)</code> is hashed as
+    <code>A123456</code>. Computed locally; use sample numbers when testing.
+  </p>
+  <label>HKIC number <input type="text" data-el="hkic" placeholder="A123456(7)" autocomplete="off" spellcheck="false" /></label>
+  <p class="ist-status" data-el="status" role="status"></p>
+  <div class="ist-output ist-hidden" data-el="outWrap">
+    <pre data-el="out"></pre>
+    <button type="button" class="ist-copy" data-copy-target="[data-el=b64]">Copy Base64</button>
+    <span data-el="b64" class="ist-hidden"></span>
+  </div>
+</ist-hkic>
+
+<script>
+  import { hkicHash } from '../lib/iam-smart-crypto.js'
+  import { setStatus, show, wireCopyButtons } from '../lib/ui.js'
+
+  class IstHkic extends HTMLElement {
+    connectedCallback() {
+      const el = (name: string) => this.querySelector(`[data-el=${name}]`) as any
+      wireCopyButtons(this)
+      const run = async () => {
+        const value = el('hkic').value.trim()
+        if (!value) {
+          show(el('outWrap'), false)
+          setStatus(el('status'), '')
+          return
+        }
+        try {
+          const h = await hkicHash(value)
+          el('out').textContent = `identifier  ${h.identifier}\nBase64      ${h.base64}\nhex         ${h.hex}`
+          el('b64').textContent = h.base64
+          show(el('outWrap'), true)
+          setStatus(el('status'), 'Send the Base64 value as HKICHash.', 'ok')
+        } catch (e: any) {
+          show(el('outWrap'), false)
+          setStatus(el('status'), e.message, 'error')
+        }
+      }
+      el('hkic').addEventListener('input', run)
+    }
+  }
+  if (!customElements.get('ist-hkic')) customElements.define('ist-hkic', IstHkic)
+</script>

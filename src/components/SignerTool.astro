@@ -1,0 +1,177 @@
+---
+// Interactive: build a signed + encrypted POST request exactly as the iAM Smart gateway expects it.
+import endpoints from '../data/endpoints.json'
+
+const groups = new Map<string, typeof endpoints>()
+for (const e of endpoints) {
+  const tag = e.deprecated ? 'Deprecated APIs' : e.tags[0]
+  if (!groups.has(tag)) groups.set(tag, [])
+  groups.get(tag)!.push(e)
+}
+interface Props {
+  showTitle?: boolean
+}
+const { showTitle = true } = Astro.props
+---
+
+<ist-signer class="ist not-content">
+  {showTitle && <h3 class="ist-title" id="request-signer">Sign &amp; encrypt a request</h3>}
+  <p class="ist-note">
+    Everything runs in your browser; nothing is sent anywhere. Use test-environment credentials only. Pick an endpoint, paste your
+    CEK (or generate a throwaway one to experiment), and copy the resulting headers, body or curl command.
+  </p>
+
+  <div class="ist-grid">
+    <label>Endpoint
+      <select name="endpoint" data-el="endpoint">
+        {[...groups.entries()].map(([tag, list]) => (
+          <optgroup label={tag}>
+            {list.map((e) => <option value={e.id}>{e.summary}</option>)}
+          </optgroup>
+        ))}
+      </select>
+    </label>
+    <label>Environment
+      <select name="env" data-el="env">
+        <option value="https://apigw-isit.staging-eid.gov.hk">Testing — apigw-isit.staging-eid.gov.hk</option>
+        <option value="https://apigw.iamsmart.gov.hk">Production — apigw.iamsmart.gov.hk</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="ist-grid">
+    <label>clientID <input type="text" name="clientId" data-el="clientId" placeholder="edae2e2529ff46228af1e4d18c8405d1" autocomplete="off" spellcheck="false" /></label>
+    <label>Client secret <small>(never leaves this page)</small>
+      <input type="password" data-el="secret" placeholder="from the Self-Service Portal" autocomplete="off" spellcheck="false" />
+    </label>
+  </div>
+
+  <label data-el="cekRow">CEK (Base64, 32 bytes) <small>unwrap one from <code>getKey</code> with the decrypt tool, or generate a random key to experiment</small>
+    <input type="text" data-el="cek" placeholder="Base64 content encryption key" autocomplete="off" spellcheck="false" />
+  </label>
+
+  <div class="ist-grid">
+    <label>timestamp <small>epoch ms, blank = now</small><input type="text" data-el="timestamp" inputmode="numeric" placeholder="now" /></label>
+    <label>nonce <small>blank = random</small><input type="text" data-el="nonce" placeholder="random 32 hex chars" spellcheck="false" /></label>
+  </div>
+
+  <fieldset data-el="rlfRow">
+    <legend>rateLimitFactor header</legend>
+    <label class="ist-inline"><input type="checkbox" data-el="rlf" /> Send <code>{'{"key":"suaMethod","value":[…]}'}</code></label>
+    <div class="ist-checks">
+      <label class="ist-inline"><input type="checkbox" data-el="rlfFR" checked /> FR</label>
+      <label class="ist-inline"><input type="checkbox" data-el="rlfNFC" checked /> NFC</label>
+    </div>
+  </fieldset>
+
+  <label data-el="bodyRow">Request body (plain JSON, before encryption)
+    <textarea data-el="body" rows="10" spellcheck="false"></textarea>
+  </label>
+
+  <div class="ist-actions">
+    <button type="button" data-el="go">Sign &amp; encrypt</button>
+    <button type="button" class="ist-secondary" data-el="genCek">Generate random CEK</button>
+    <button type="button" class="ist-secondary" data-el="reset">Reset example body</button>
+  </div>
+  <p class="ist-status" data-el="status" role="status"></p>
+
+  <div data-el="out" class="ist-hidden">
+    <div class="ist-output">
+      <h4>HTTP request</h4>
+      <pre data-el="http"></pre>
+      <button type="button" class="ist-copy" data-copy-target="[data-el=http]">Copy</button>
+    </div>
+    <div class="ist-output">
+      <h4>curl</h4>
+      <pre data-el="curl"></pre>
+      <button type="button" class="ist-copy" data-copy-target="[data-el=curl]">Copy</button>
+    </div>
+    <details>
+      <summary>Signed string (for debugging D20006)</summary>
+      <div class="ist-output"><pre data-el="signed"></pre><button type="button" class="ist-copy" data-copy-target="[data-el=signed]">Copy</button></div>
+    </details>
+  </div>
+</ist-signer>
+
+<script>
+  import endpoints from '../data/endpoints.json'
+  import { buildRequest, randomCekBase64 } from '../lib/iam-smart-crypto.js'
+  import { persist, setStatus, show, wireCopyButtons } from '../lib/ui.js'
+
+  class IstSigner extends HTMLElement {
+    connectedCallback() {
+      const el = (name: string) => this.querySelector(`[data-el=${name}]`) as any
+      const byId = new Map(endpoints.map((e) => [e.id, e]))
+      persist('ist-signer', [el('endpoint'), el('env'), el('clientId')])
+      wireCopyButtons(this)
+
+      const fillExample = () => {
+        const ep = byId.get(el('endpoint').value)
+        if (!ep) return
+        el('body').value = ep.example ? JSON.stringify(ep.example, null, 2) : ''
+        show(el('bodyRow'), ep.encrypted)
+        show(el('cekRow'), ep.encrypted)
+        show(el('rlfRow'), ep.rateLimit)
+        el('rlf').checked = ep.rateLimit
+      }
+      fillExample()
+      el('endpoint').addEventListener('change', fillExample)
+      el('reset').addEventListener('click', fillExample)
+      el('genCek').addEventListener('click', () => {
+        el('cek').value = randomCekBase64()
+        setStatus(el('status'), 'Generated a random CEK. The real gateway only accepts the CEK it issued to you.', 'info')
+      })
+
+      el('go').addEventListener('click', async () => {
+        const ep = byId.get(el('endpoint').value)
+        if (!ep) return
+        const status = el('status')
+        try {
+          const clientId = el('clientId').value.trim()
+          const clientSecret = el('secret').value
+          if (!clientId || !clientSecret) throw new Error('Enter the clientID and client secret')
+          let body
+          if (ep.encrypted) {
+            if (!el('cek').value.trim()) throw new Error('Enter a CEK (or generate one to experiment)')
+            try {
+              body = JSON.parse(el('body').value)
+            } catch {
+              throw new Error('The request body is not valid JSON')
+            }
+          }
+          const timestamp = el('timestamp').value.trim() ? Number(el('timestamp').value.trim()) : Date.now()
+          if (!Number.isSafeInteger(timestamp)) throw new Error('timestamp must be epoch milliseconds')
+          const values = [el('rlfFR').checked && 'FR', el('rlfNFC').checked && 'NFC'].filter(Boolean)
+          const rateLimitFactor = ep.rateLimit && el('rlf').checked ? { key: 'suaMethod', value: values } : undefined
+          el('go').disabled = true
+          const req = await buildRequest({
+            clientId,
+            clientSecret,
+            cekBase64: el('cek').value.trim(),
+            body,
+            timestamp,
+            nonce: el('nonce').value.trim() || undefined,
+            rateLimitFactor,
+          })
+          const url = el('env').value + ep.path
+          const headerLines = Object.entries(req.headers).map(([k, v]) => `${k}: ${v}`)
+          el('http').textContent = [`POST ${url}`, ...headerLines, '', req.body].join('\n')
+          const q = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`
+          el('curl').textContent = [
+            `curl -X POST ${q(url)}`,
+            ...Object.entries(req.headers).map(([k, v]) => `  -H ${q(`${k}: ${v}`)}`),
+            ...(req.body ? [`  --data-raw ${q(req.body)}`] : []),
+          ].join(' \\\n')
+          el('signed').textContent = req.signedMessage
+          show(el('out'), true)
+          setStatus(status, `Signed${ep.encrypted ? ' and encrypted' : ''}. Timestamp and nonce must be fresh for every real request.`, 'ok')
+        } catch (e: any) {
+          setStatus(status, e.message ?? String(e), 'error')
+        } finally {
+          el('go').disabled = false
+        }
+      })
+    }
+  }
+  if (!customElements.get('ist-signer')) customElements.define('ist-signer', IstSigner)
+</script>

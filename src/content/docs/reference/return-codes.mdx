@@ -1,0 +1,17 @@
+---
+title: Return codes
+description: Every iAM Smart return code from spec §2.4.3, searchable, with troubleshooting hints.
+---
+
+import { Aside } from '@astrojs/starlight/components'
+import ReturnCodeLookup from '../../../components/ReturnCodeLookup.astro'
+
+`code` in every response and callback is `D00000` on success. The table lists every code in the v2.5.2 specification; the *What to check* column is this site's guidance, not part of the spec.
+
+<ReturnCodeLookup />
+
+<Aside type="tip">
+  Link straight to a code with <code>?code=</code>, e.g. <a href="/reference/return-codes/?code=D30002">/reference/return-codes/?code=D30002</a>.
+</Aside>
+
+Status codes for bulk signing (`SS001`–`SS006`) are returned by [Enquire Bulk Digital Signing Status](/api/operations/enquire-bulk-signing-status/); acknowledgement values (`SR001`–`SR003`) are sent by you in the *acknowledge* APIs.

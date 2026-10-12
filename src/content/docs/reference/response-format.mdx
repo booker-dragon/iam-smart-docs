@@ -1,0 +1,43 @@
+---
+title: Response format & HTTP status
+description: The JSON envelope every iAM Smart response and callback uses, and the HTTP status codes the gateway returns.
+---
+
+## Envelope
+
+Every response and JSON callback has the same shape (spec §2.4.2):
+
+```json
+{
+  "txID": "<T=938ffb193b4b4370b6c2584372c6a588>",
+  "code": "D00000",
+  "message": "SUCCESS",
+  "content": { }
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `txID` | Unique message identifier. Log it — the support team uses it for troubleshooting. |
+| `code` | `D00000` = success. Anything else is an error; see [Return codes](/reference/return-codes/). |
+| `message` | Human-readable status. Error messages may name the offending parameter, e.g. `empty parameter {hashCode}`. |
+| `content` | Business data. **Encrypted** (a Base64 string) except for *Request CEK*. On errors it is empty or holds only required fields such as `businessID`. |
+
+Business errors are returned with **HTTP 200** — always check `code`.
+
+When a callback passes data in the URL (browser redirects) and an error happens before the callback, the URL carries `error_code` instead.
+
+## HTTP status codes
+
+| Status | Meaning |
+| --- | --- |
+| 200 OK | Request processed (check `code`). |
+| 302 Found | Redirect (e.g. the QR page). |
+| 400 Bad Request | Malformed request. |
+| 401 Unauthorised | Missing valid authentication credentials. |
+| 403 Forbidden | Understood but refused. |
+| 404 Not Found | No matching resource. |
+| 413 Payload Too Large | Uploaded files larger than **5 MB** or a request larger than **10 MB**. |
+| 429 Too Many Requests | Too many requests in a given time — e.g. requesting a CEK on every call. |
+| 500 Internal Server Error | Unexpected server condition. |
+| 503 Service Unavailable | Temporary overload or maintenance. Fall back gracefully. |

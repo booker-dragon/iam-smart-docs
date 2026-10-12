@@ -1,0 +1,49 @@
+---
+title: Spec errata
+description: Inconsistencies found in the iAM Smart API Specification v2.5.2 while transcribing it, and which reading this site uses.
+---
+
+import { Aside } from '@astrojs/starlight/components'
+
+While converting the PDF into an OpenAPI description, these differences between a section's API table and its examples (or between sections) turned up. Where the reading matters, confirm with the iAM Smart support team.
+
+## Endpoints and URLs
+
+| Section | In the spec | This site uses |
+| --- | --- | --- |
+| §3.5.1.1 Request Profile (v1) | Table and deprecation notice: `/api/v1/account/auth/profile/initiateRequest`; example: `/api/v1/auth/profile/initiateRequest` | The table path (API is shut down anyway) |
+| §7.5.9 Obtain Anonymous PDF Digital Signing Result | Table: `/api/v1/anonymous/pdfsigning/getResult`; example: `/api/v1/anonymous/signing/getResult` | `/pdfsigning/getResult` |
+| §9.5.7, §10.5.10 Cancel Bulk Digital Signing Request | Table repeats the *acknowledge* name and URI `/api/v1/bdss/ackResult`; example: `/api/v1/bdss/cancelRequest` | `/api/v1/bdss/cancelRequest` |
+| §8.5.2 Re-authentication app link | Table: `<scheme>:v2_re-auth` (missing `//`); example: `<scheme>://v2_re-auth` | `://v2_re-auth` |
+| §4.1.6.3 Form Filling (v1) app link | Table: `://eme`; example: `://form-filling` | Both noted (API shut down) |
+| §5.5.8 Anonymous Form Filling (appv2) app link | Table: `://v2_anon_form-filling`; example: `://anon_form-filling` | `v2_anon_form-filling` |
+
+## Parameters
+
+| Section | Issue |
+| --- | --- |
+| §4.2.5.4 Request Form Filling (appv2) | Table requires `serverRedirectURI`; the example body sends `redirectURI`. This site follows the table, consistent with every other appv2 API. |
+| §9.5.1 Bulk signing multipart request | Text names the metadata part `reqMetada`; the example uses `reqMetadata`. This site uses `reqMetadata`. |
+| §9.5.4 Bulk signing result callback | The metadata part is `sigMetada` in both text and example — documented as spelled. |
+| §8.5.3 Re-authentication callback | `isPassed` typed *String* in the table, boolean `true` in the example (and *Boolean* for step-up). Handle both. |
+| §11.5.1 Step-up (appv1) | `source` description mentions the appv2 values `App_Link` / `App_Package` and the example uses `App_Package`; other appv1 APIs take Appendix B browser values. |
+| §2.4.1 `rateLimitFactor` | Described as Base64-encoded, while examples print the decoded JSON (“Unencoded Base64 string of the rateLimitFactor”). Send Base64. |
+| §6.5.6, §7.5.10 Acknowledge signing result | Examples include a `rateLimitFactor` header, which the prerequisites only require for step-up. |
+| §5.5.3 Anonymous Form Filling (appv1) app link | Table marks `source`, `redirectURI` and `state` as required; the example only shows `ticketID`. |
+| HKICHash, hashCode, docDigest | Described as Base64, but examples look like hexadecimal strings. Send Base64. |
+| Appendix B | `Android_ IMS_InAppBrowser` contains a space; this site uses `Android_IMS_InAppBrowser`. |
+
+## Example JSON
+
+Several examples are not valid JSON as printed — don't copy them verbatim:
+
+- §2.3.6.1: keys `" issueAt"` and `" expiresIn"` have a leading space.
+- §3.4.10: key `"loginType "` has a trailing space.
+- §3.4.5: missing comma after `"isDirectLoginV2": "true"`.
+- §3.4.9: `&code_verifier =…` has a space before `=`.
+- Many request examples have leading spaces inside values, e.g. `" emailAddress"`, `" 965e638f…"`, `" Digital Policy Office"`.
+- Several examples end objects with a trailing comma.
+
+<Aside type="note">
+  Found something else? Edit this page via the link below, or open an issue on the repository.
+</Aside>

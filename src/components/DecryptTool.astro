@@ -1,0 +1,136 @@
+---
+// Interactive: decrypt response content, unwrap a CEK, or decrypt a full callback.
+interface Props {
+  showTitle?: boolean
+}
+const { showTitle = true } = Astro.props
+---
+
+<ist-decrypt class="ist not-content">
+  {showTitle && <h3 class="ist-title" id="decryptor">Decrypt responses &amp; callbacks</h3>}
+  <p class="ist-note">
+    Runs locally in your browser. Only paste <strong>test-environment</strong> private keys. The spec says the CEK is wrapped with “RSA” without
+    naming the padding, so <em>Auto</em> tries PKCS#1 v1.5 (Java's default for <code>RSA</code>), then OAEP-SHA1 and OAEP-SHA256.
+  </p>
+
+  <div class="ist-tabs" role="tablist">
+    <button type="button" role="tab" aria-selected="true" data-tab="content">Response content</button>
+    <button type="button" role="tab" aria-selected="false" data-tab="cek">Unwrap CEK</button>
+    <button type="button" role="tab" aria-selected="false" data-tab="callback">Callback</button>
+  </div>
+
+  <div data-panel="content">
+    <label>Encrypted <code>content</code> — or the whole response JSON
+      <textarea data-el="content" rows="5" spellcheck="false" placeholder='{"txID":"…","code":"D00000","message":"SUCCESS","content":"AAAADIF/FmVr…"}'></textarea>
+    </label>
+    <label>CEK (Base64) <input type="text" data-el="contentCek" autocomplete="off" spellcheck="false" /></label>
+  </div>
+
+  <div data-panel="cek" class="ist-hidden">
+    <label><code>secretKey</code> — or the whole <code>getKey</code> response JSON
+      <textarea data-el="secretKey" rows="5" spellcheck="false"></textarea>
+    </label>
+  </div>
+
+  <div data-panel="callback" class="ist-hidden">
+    <label>Callback body JSON (<code>txID</code>, <code>code</code>, <code>message</code>, <code>secretKey</code>, <code>content</code>)
+      <textarea data-el="callback" rows="6" spellcheck="false"></textarea>
+    </label>
+  </div>
+
+  <div data-el="keyRow" class="ist-hidden">
+    <div class="ist-grid">
+      <label>KEK private key (PEM, unencrypted)
+        <textarea data-el="pem" rows="4" spellcheck="false" placeholder="-----BEGIN PRIVATE KEY-----"></textarea>
+      </label>
+      <label>RSA padding
+        <select data-el="padding">
+          <option value="auto">Auto (PKCS#1 v1.5 → OAEP-SHA1 → OAEP-SHA256)</option>
+          <option value="pkcs1">PKCS#1 v1.5</option>
+          <option value="oaep-sha1">OAEP with SHA-1</option>
+          <option value="oaep-sha256">OAEP with SHA-256</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <div class="ist-actions"><button type="button" data-el="go">Decrypt</button></div>
+  <p class="ist-status" data-el="status" role="status"></p>
+  <div class="ist-output ist-hidden" data-el="outWrap">
+    <pre data-el="out"></pre>
+    <button type="button" class="ist-copy" data-copy-target="[data-el=out]">Copy</button>
+  </div>
+</ist-decrypt>
+
+<script>
+  import { decryptCallback, decryptContent, unwrapCek } from '../lib/iam-smart-crypto.js'
+  import { setStatus, show, wireCopyButtons } from '../lib/ui.js'
+
+  function pretty(text: string) {
+    try {
+      return JSON.stringify(JSON.parse(text), null, 2)
+    } catch {
+      return text
+    }
+  }
+
+  function pickField(input: string, field: string) {
+    const trimmed = input.trim()
+    if (!trimmed.startsWith('{')) return trimmed
+    const obj = JSON.parse(trimmed)
+    return obj?.[field] ?? obj?.content?.[field] ?? ''
+  }
+
+  class IstDecrypt extends HTMLElement {
+    connectedCallback() {
+      const el = (name: string) => this.querySelector(`[data-el=${name}]`) as any
+      let mode = 'content'
+      wireCopyButtons(this)
+
+      this.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((tab) => {
+        tab.addEventListener('click', () => {
+          mode = tab.dataset.tab!
+          this.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((t) => t.setAttribute('aria-selected', String(t === tab)))
+          this.querySelectorAll<HTMLElement>('[data-panel]').forEach((p) => show(p, p.dataset.panel === mode))
+          show(el('keyRow'), mode !== 'content')
+          show(el('outWrap'), false)
+          setStatus(el('status'), '')
+        })
+      })
+
+      el('go').addEventListener('click', async () => {
+        const status = el('status')
+        el('go').disabled = true
+        try {
+          let result = ''
+          if (mode === 'content') {
+            const content = pickField(el('content').value, 'content')
+            if (!content || typeof content !== 'string') throw new Error('Paste the Base64 content (or a response whose content is a string)')
+            const cek = el('contentCek').value.trim()
+            if (!cek) throw new Error('Enter the CEK')
+            result = pretty(await decryptContent(content, cek))
+            setStatus(status, 'Decrypted.', 'ok')
+          } else if (mode === 'cek') {
+            const secretKey = pickField(el('secretKey').value, 'secretKey')
+            if (!secretKey) throw new Error('Paste secretKey or the getKey response')
+            const { cekBase64, padding } = await unwrapCek(el('pem').value, secretKey, el('padding').value)
+            result = cekBase64
+            setStatus(status, `CEK unwrapped with ${padding}. Use it in the request signer and the content decryptor.`, 'ok')
+          } else {
+            const { decrypted, cekBase64, padding } = await decryptCallback(el('callback').value, el('pem').value, el('padding').value)
+            result = JSON.stringify(decrypted, null, 2) + `\n\n// CEK used for this callback: ${cekBase64}`
+            setStatus(status, `Callback decrypted (CEK unwrapped with ${padding}).`, 'ok')
+          }
+          el('out').textContent = result
+          show(el('outWrap'), true)
+        } catch (e: any) {
+          show(el('outWrap'), false)
+          setStatus(status, e.message ?? String(e), 'error')
+        } finally {
+          el('go').disabled = false
+        }
+      })
+    }
+  }
+  if (!customElements.get('ist-decrypt')) customElements.define('ist-decrypt', IstDecrypt)
+</script>

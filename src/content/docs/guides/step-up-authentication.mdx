@@ -1,0 +1,42 @@
+---
+title: Step-up Authentication
+description: Re-verify a logged-in user with NFC (their own smart HKIC) and/or facial recognition against ImmD records.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components'
+
+Scope: `eidapi_sua` · Spec §11
+
+Step-up authentication asks the logged-in user to prove their identity again with:
+
+- **NFC** — the phone reads the user's own smart HKIC;
+- **FR** — the front camera takes a facial image, matched against the Immigration Department's records.
+
+<Steps>
+
+1. Call [Request Step-up Authentication (appv1)](/api/operations/request-step-up-authentication/) — or [appv2](/api/operations/request-step-up-authentication-appv2/) (`/api/appv2/account/sua/initiateRequestV2`) from a same-device app — with `businessID`, `accessToken`, `openID`, `source`, the redirect URI(s) and:
+   - `suaMethod` (required): `{"unary": ["FR"]}`, `{"unary": ["NFC"]}` or `{"and": ["FR", "NFC"]}`;
+   - `suaMessage` (optional): code of a registered message shown before the check, ≤ 10 characters;
+   - `suaWaitPeriod` (optional): minimum account age in hours, 0–720.
+
+   Send the **`rateLimitFactor`** header, e.g. Base64 of `{"key":"suaMethod","value":["FR","NFC"]}`.
+
+2. Open the app with `<scheme>://sua?ticketID=…` (appv1) or `<scheme>://v2_sua?ticketID=…` (appv2). The `ticketID` is valid for 18 minutes.
+
+3. Receive the [step-up result](/api/webhooks/step-up-authentication-result-callback/): `isPassed: true` if the same person passed. Treat the request as failed after 18 minutes.
+
+</Steps>
+
+| Error | Meaning |
+| --- | --- |
+| `D41001` | User rejected |
+| `D41002` | Timeout |
+| `D41003` | Inconsistent HKIC number |
+| `D41500` | Failed to step-up authenticate |
+| `D41503` | Device not supported for NFC |
+| `D41006` | User still in waiting period |
+| `D41007` | User not allowed to do step-up authentication |
+
+<Aside>
+  The methods you may request must be granted to your client in the e-Service Management Portal. A request fails immediately when the first method fails.
+</Aside>

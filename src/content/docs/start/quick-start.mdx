@@ -1,0 +1,140 @@
+---
+title: 'Quick start: log in a user'
+description: The complete iAM Smart login flow for a website — redirect to the QR page, receive the authorisation code, exchange it for a token.
+---
+
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components'
+
+This walks through the most common integration: a website where the user scans a QR code with the iAM Smart app on their phone (spec §3.3.1). The same steps cover the same-device case — the gateway decides whether to show a QR code or open the app.
+
+<Aside>
+  You need a client ID, client secret, a KEK certificate and its private key, and a `redirectURI` whitelisted in the Self-Service Portal. See [Onboarding](/start/onboarding/). To experiment before you have them, run the [local mock server](/guides/mock-server/).
+</Aside>
+
+<Steps>
+
+1. **Send the browser to the QR page.** Generate a random `state`, store it in the user's session, and redirect to [Request QR Page](/api/operations/get-qr-page/). `source` describes the user's browser ([Source values](/reference/source-values/)).
+
+   ```txt
+   https://apigw-isit.staging-eid.gov.hk/api/v1/auth/getQR
+     ?clientID=<clientID>
+     &responseType=code
+     &source=PC_Browser
+     &redirectURI=https%3A%2F%2Fyour.service%2Fiamsmart%2Fcallback
+     &scope=eidapi_auth
+     &lang=en-US
+     &state=Q3v9_kd82JxV
+   ```
+
+2. **The user approves in the app.** The browser shows a QR code (or opens the app on the same device), the user confirms, and iAM Smart redirects the browser to your [callback](/api/webhooks/auth-code-callback/):
+
+   ```txt
+   GET https://your.service/iamsmart/callback?code=0ad186353c424c64897fcc00445c9ba1&state=Q3v9_kd82JxV
+   ```
+
+   If the user denies or something fails you get `error_code` instead of `code`. Give up if nothing arrives within 18 minutes.
+
+3. **Check `state`, then exchange the code** within 60 seconds with [Request accessToken & Tokenised ID](/api/operations/request-access-token/). This is a signed, encrypted POST — the [reference client](/guides/client/) handles that.
+
+4. **Match the user** on `openID`, which is stable per user for your client. Keep `accessToken` if you will call other APIs for this user (profiles, form filling, signing, …) before it expires.
+
+</Steps>
+
+## Example server
+
+<Tabs>
+<TabItem label="Node.js">
+
+```js
+// npm i express  — any framework works the same way
+import crypto from 'node:crypto'
+import express from 'express'
+import session from 'express-session'
+import { IamSmartClient } from './iam-smart-client.mjs' // examples/node in this repo
+
+const iamSmart = new IamSmartClient({
+  baseUrl: 'https://apigw-isit.staging-eid.gov.hk',
+  clientId: process.env.IAMSMART_CLIENT_ID,
+  clientSecret: process.env.IAMSMART_CLIENT_SECRET,
+  privateKeyPem: process.env.IAMSMART_KEK_PRIVATE_KEY,
+})
+const REDIRECT_URI = 'https://your.service/iamsmart/callback'
+
+const app = express()
+app.use(session({ secret: process.env.SESSION_SECRET, resave: false, saveUninitialized: false }))
+
+app.get('/login/iamsmart', (req, res) => {
+  req.session.iamSmartState = crypto.randomBytes(12).toString('base64url') // letters, digits, _ and -
+  const qs = new URLSearchParams({
+    clientID: process.env.IAMSMART_CLIENT_ID,
+    responseType: 'code',
+    source: 'PC_Browser', // detect from the User-Agent in real code
+    redirectURI: REDIRECT_URI,
+    scope: 'eidapi_auth',
+    lang: 'en-US',
+    state: req.session.iamSmartState,
+  })
+  res.redirect(`https://apigw-isit.staging-eid.gov.hk/api/v1/auth/getQR?${qs.toString().replace(/\+/g, '%20')}`)
+})
+
+app.get('/iamsmart/callback', async (req, res) => {
+  const { code, state, error_code } = req.query
+  if (!state || state !== req.session.iamSmartState) return res.status(400).send('Invalid state')
+  delete req.session.iamSmartState
+  if (error_code || !code) return res.redirect(`/login?error=${encodeURIComponent(error_code ?? 'cancelled')}`)
+
+  const token = await iamSmart.post('/api/v1/auth/getToken', { code, grantType: 'authorization_code' })
+  if (token.code !== 'D00000') return res.redirect(`/login?error=${token.code}`)
+
+  const { openID, accessToken, userType, lastModifiedDate } = token.content
+  req.session.user = await findOrLinkUser(openID) // your account matching
+  req.session.iamSmart = { openID, accessToken, userType, lastModifiedDate }
+  res.redirect('/')
+})
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python
+# pip install flask cryptography
+import secrets, urllib.parse
+from flask import Flask, redirect, request, session, abort
+from iam_smart_client import IamSmartClient  # examples/python in this repo
+
+iam_smart = IamSmartClient("https://apigw-isit.staging-eid.gov.hk", CLIENT_ID, CLIENT_SECRET, KEK_PRIVATE_KEY_PEM)
+REDIRECT_URI = "https://your.service/iamsmart/callback"
+app = Flask(__name__)
+app.secret_key = SESSION_SECRET
+
+@app.get("/login/iamsmart")
+def login():
+    session["iamsmart_state"] = secrets.token_urlsafe(12)
+    qs = urllib.parse.urlencode({
+        "clientID": CLIENT_ID, "responseType": "code", "source": "PC_Browser",
+        "redirectURI": REDIRECT_URI, "scope": "eidapi_auth", "lang": "en-US",
+        "state": session["iamsmart_state"],
+    }, quote_via=urllib.parse.quote)
+    return redirect(f"https://apigw-isit.staging-eid.gov.hk/api/v1/auth/getQR?{qs}")
+
+@app.get("/iamsmart/callback")
+def callback():
+    if request.args.get("state") != session.pop("iamsmart_state", None):
+        abort(400)
+    code = request.args.get("code")
+    if not code:
+        return redirect(f"/login?error={request.args.get('error_code', 'cancelled')}")
+    token = iam_smart.post("/api/v1/auth/getToken", {"code": code, "grantType": "authorization_code"})
+    if token["code"] != "D00000":
+        return redirect(f"/login?error={token['code']}")
+    session["openid"] = token["content"]["openID"]
+    return redirect("/")
+```
+
+</TabItem>
+</Tabs>
+
+## Next
+
+- Same-device apps: see [Authentication → app flows](/guides/authentication/#online-service-app-same-device) and [App deep links](/reference/deep-links/).
+- Need the user's details? Call [Profiles](/guides/profiles/) (GRO) or [Form Filling](/guides/form-filling/) with the `accessToken` and `openID`.

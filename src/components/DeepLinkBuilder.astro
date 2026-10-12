@@ -1,0 +1,97 @@
+---
+// Interactive: build an iAM Smart app deep link (<scheme>://<action>?…).
+import { deepLinks, environments } from '../data/iam-smart.js'
+interface Props {
+  showTitle?: boolean
+}
+const { showTitle = true } = Astro.props
+---
+
+<ist-deeplink class="ist not-content">
+  {showTitle && <h3 class="ist-title" id="deep-link-builder">App deep link builder</h3>}
+  <p class="ist-note">Builds the URL your page or app opens to hand the user over to the iAM Smart app on the same device.</p>
+  <div class="ist-grid">
+    <label>Environment
+      <select name="env" data-el="env">
+        {Object.values(environments).map((e) => <option value={e.scheme}>{e.label} — {e.scheme}://</option>)}
+      </select>
+    </label>
+    <label>Action
+      <select name="action" data-el="action">
+        {deepLinks.map((d) => <option value={d.action}>{d.action} — {d.feature} ({d.version})</option>)}
+      </select>
+    </label>
+  </div>
+  <div class="ist-grid" data-el="params"></div>
+  <p class="ist-status" data-el="status" role="status"></p>
+  <div class="ist-output">
+    <pre data-el="url"></pre>
+    <button type="button" class="ist-copy" data-copy-target="[data-el=url]">Copy</button>
+  </div>
+</ist-deeplink>
+
+<script>
+  import { deepLinks } from '../data/iam-smart.js'
+  import { persist, setStatus, wireCopyButtons } from '../lib/ui.js'
+
+  const HINTS: Record<string, string> = {
+    clientID: 'your client ID',
+    responseType: 'code',
+    source: 'App_Link / App_Scheme (appv1) · App_Link / App_Package (appv2)',
+    redirectURI: 'registered callback URI',
+    clientRedirectURI: 'iOS only: registered Universal Link',
+    packageName: 'Android only, e.g. com.onlineservice.myapp',
+    activityClass: 'Android only',
+    activityParams: 'Android only, optional',
+    scope: 'eidapi_auth eidapi_profiles …',
+    state: 'anti-CSRF value',
+    ticketID: 'from the initiate request',
+  }
+
+  class IstDeepLink extends HTMLElement {
+    connectedCallback() {
+      const el = (name: string) => this.querySelector(`[data-el=${name}]`) as any
+      persist('ist-deeplink', [el('env'), el('action')])
+      wireCopyButtons(this)
+      const values: Record<string, string> = { responseType: 'code' }
+
+      const renderInputs = () => {
+        const link = deepLinks.find((d) => d.action === el('action').value)!
+        el('params').replaceChildren(
+          ...link.params.map((name) => {
+            const label = document.createElement('label')
+            label.textContent = name
+            const input = document.createElement('input')
+            input.type = 'text'
+            input.spellcheck = false
+            input.placeholder = HINTS[name] ?? ''
+            input.value = values[name] ?? ''
+            input.dataset.param = name
+            input.addEventListener('input', () => {
+              values[name] = input.value
+              renderUrl()
+            })
+            label.append(input)
+            return label
+          }),
+        )
+        renderUrl()
+      }
+
+      const renderUrl = () => {
+        const link = deepLinks.find((d) => d.action === el('action').value)!
+        const qs = link.params
+          .filter((p) => (values[p] ?? '').trim())
+          .map((p) => `${p}=${encodeURIComponent(values[p].trim())}`)
+          .join('&')
+        el('url').textContent = `${el('env').value}://${link.action}${qs ? `?${qs}` : ''}`
+        setStatus(el('status'), `Spec section ${link.section}. ${link.version === 'appv2' ? 'appv2: Android returns via package name + activity, iOS via Universal Link.' : ''}`)
+      }
+
+      el('action').addEventListener('change', renderInputs)
+      el('env').addEventListener('change', renderUrl)
+      renderInputs()
+    }
+  }
+  if (!customElements.get('ist-deeplink')) customElements.define('ist-deeplink', IstDeepLink)
+</script>

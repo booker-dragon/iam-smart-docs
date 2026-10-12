@@ -1,0 +1,125 @@
+---
+title: Authentication
+description: Log users in with iAM Smart from a website or app, on the same or a different device, including Direct Login v2 from the iAM Smart app.
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components'
+
+Scope: `eidapi_auth` · Spec §3
+
+Authentication gives you an `accessToken` and the user's **tokenised ID** (`openID`) — unique per user per online service. Use `openID` to match accounts and the `accessToken` for follow-up APIs.
+
+## Website, different device
+
+The user browses on a computer and scans a QR code with the iAM Smart app (§3.3.1).
+
+<Steps>
+
+1. Your server redirects the browser to [Request QR Page](/api/operations/get-qr-page/) with `scope=eidapi_auth`, a `source` such as `PC_Browser`, your `redirectURI` and a random `state`.
+2. The gateway shows the QR page and long-polls while the user scans and confirms.
+3. The browser is redirected to your [authCode callback](/api/webhooks/auth-code-callback/) with `code` and `state`.
+4. Your server calls [Request accessToken & Tokenised ID](/api/operations/request-access-token/) within 60 seconds and matches the user by `openID`.
+
+</Steps>
+
+## Website, same device
+
+Same API calls as above (§3.3.2.1): the gateway returns an app broker page that opens the iAM Smart app on the phone, then returns to the original browser with the code. Set `brokerPage=true` on getQR if you want Universal Link / App Link to open the app, falling back to QR, without detecting whether it is installed.
+
+### Direct Login v2 (from the iAM Smart app)
+
+Users can also start from your service in the iAM Smart app's service catalogue (§3.3.2.2):
+
+<Steps>
+
+1. iAM Smart calls your **dedicated** [Direct Login v2 callback](/api/webhooks/direct-login-v2-callback/) with `code` and `RefID`.
+2. Within **30 seconds**, call *Request accessToken* with `isDirectLoginV2: "true"`.
+
+</Steps>
+
+Register in the Self-Service Portal (approved by the support team): a Direct Login v2 callback URL per language (en / tc / sc), the scopes requested by direct login, and a fallback URL per language. On failure the user lands on your fallback URL with `error_code`.
+
+## Online service app, different device
+
+Your app shows a QR code for a phone that has iAM Smart (§3.3.3):
+
+<Steps>
+
+1. Your server returns a getQR URL; your app opens it in an in-app browser.
+2. The user scans the QR code with iAM Smart on another device and confirms.
+3. The in-app browser is redirected to your server callback with `code`; your server calls *Request accessToken*.
+
+</Steps>
+
+## Online service app, same device
+
+Your app opens the iAM Smart app directly (§3.3.4.1):
+
+<Steps>
+
+1. Open the iAM Smart app with a deep link — `auth` (appv1) or `v2_auth` (appv2). See the [deep link builder](/tools/#deep-link-builder).
+2. The user confirms; iAM Smart returns to your app with `code` (and `state`).
+3. Your app sends the code to your server, which calls *Request accessToken*.
+
+</Steps>
+
+<Tabs>
+<TabItem label="appv2 (recommended)">
+
+```txt
+hk.gov.iamsmart.testapp://v2_auth
+  ?clientID=<clientID>
+  &responseType=code
+  &source=App_Package                 # App_Link on iOS
+  &packageName=com.onlineservice.myapp # Android only
+  &activityClass=callback_activity     # Android only
+  &activityParams=callback_param       # Android only, optional
+  &clientRedirectURI=<Universal Link>  # iOS only, no commas
+  &scope=eidapi_auth
+  &state=eb9b7b8eddd5
+```
+
+On Android, iAM Smart relaunches your app by **package name + activity** (no App Link needed, so it also works on devices without Google Mobile Services); on iOS it uses your Universal Link.
+
+</TabItem>
+<TabItem label="appv1">
+
+```txt
+hk.gov.iamsmart.testapp://auth
+  ?clientID=<clientID>
+  &responseType=code
+  &source=App_Link        # App_Scheme only if the support team approves
+  &redirectURI=<registered Universal / App Link>
+  &scope=eidapi_auth
+  &state=eb9b7b8eddd5
+```
+
+Your app is reopened through Universal Link / App Link. App Links require Google Mobile Services. appv1 does not allow one client ID to serve multiple apps.
+
+</TabItem>
+</Tabs>
+
+The spec recommends **appv2** for new implementations; existing appv1 integrations may continue or migrate.
+
+### Direct Login v2 (App)
+
+When the user starts from the iAM Smart app's catalogue, your app receives `code` and a PKCE `code_verifier` (Universal Link on iOS, intent extras on Android, §3.4.9). Send both to *Request accessToken*:
+
+```json
+{ "code": "0ad186353c424c64897fcc00445c9ba1", "code_verifier": "DxjdFp0vKYCY4F0DE6M3eEadLxcJBTb6k4LZ9J5z", "grantType": "authorization_code" }
+```
+
+The code expires after 30 seconds.
+
+## After login
+
+| API | Use |
+| --- | --- |
+| [Verify CCIC User](/api/operations/verify-ccic-user/) | Is the user a Consular Corps Identity Card holder? Ask the support team for access first. |
+| [Get Last Login Status](/api/operations/get-last-login-status/) | Did the user unlock iAM Smart with `PIN` or biometrics (`BIO`) last time? |
+| [Obtain Profiles](/guides/profiles/) / [Form Filling](/guides/form-filling/) | Identity and form data. |
+| [Digital Signing](/guides/digital-signing/) | Requires `userType: sign` (iAM Smart+). |
+
+<Aside type="caution">
+  The authorisation code is single use. Re-using or exchanging it late returns `D40004`. Always compare `state` with the value you stored before trusting the callback.
+</Aside>

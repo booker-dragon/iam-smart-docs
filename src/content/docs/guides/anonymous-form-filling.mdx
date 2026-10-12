@@ -1,0 +1,53 @@
+---
+title: Anonymous Form Filling
+description: Collect profile and e-ME data with consent from a user who has not logged in to your service.
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components'
+
+Scope: `eidapi_formFilling` · Spec §5
+
+Anonymous form filling works without a prior login. The `accessToken` you get at the end can be used **once**, to fetch the result.
+
+<Steps>
+
+1. **Start the request** — [Request Anonymous Form Filling](/api/operations/request-anonymous-form-filling/) with a `businessID` and the fields. You get a `ticketID` valid for **12 minutes**.
+
+2. **Hand over to iAM Smart** with the `ticketID` (see below).
+
+3. **Receive the authorisation code** with `businessID` and `state` — on your [server callback](/api/webhooks/auth-code-callback/) (browser flows) or in your app (same-device app flows). The code expires after **1 minute**; give up if nothing arrives within 12 minutes.
+
+4. **Exchange the code** with [Request accessToken & Tokenised ID](/api/operations/request-access-token/).
+
+5. **Fetch the data** with [Obtain Anonymous Form Filling Result](/api/operations/obtain-anonymous-form-filling-result/) using the single-use token.
+
+</Steps>
+
+## Handing over to iAM Smart
+
+<Tabs>
+<TabItem label="Website">
+
+Redirect the browser to [Request QR Page](/api/operations/get-qr-page/) with `scope=eidapi_formFilling` and the `ticketID`. On a phone the broker page opens the iAM Smart app; on a computer the user scans the QR code.
+
+</TabItem>
+<TabItem label="App, different device">
+
+Open the getQR URL (with `ticketID`) in an in-app browser and let the user scan the QR code with iAM Smart on another phone.
+
+</TabItem>
+<TabItem label="App, same device">
+
+Open the iAM Smart app with a [deep link](/reference/deep-links/):
+
+- appv1 — `<scheme>://anon_form-filling?ticketID=…&source=App_Link&redirectURI=…&state=…`
+- appv2 — `<scheme>://v2_anon_form-filling?ticketID=…&source=App_Package&packageName=…&activityClass=…&state=…` (iOS: `source=App_Link&clientRedirectURI=…`)
+
+iAM Smart returns `code`, `state` and `businessID` to your app.
+
+</TabItem>
+</Tabs>
+
+<Aside type="note">
+  The v1 endpoints (`/api/v1/anonymous/eme/initiateRequest` and `/getResult`) were shut down on 31 December 2025; use the v2 paths above.
+</Aside>

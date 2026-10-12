@@ -1,0 +1,80 @@
+---
+title: Request signing
+description: The common header parameters every iAM Smart POST request carries, and how to compute the HMAC-SHA256 signature.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components'
+import SignerTool from '../../../components/SignerTool.astro'
+
+Every POST to the iAM Smart gateway carries five common parameters as **HTTP headers** (spec §2.4.1). GET requests and callbacks use some of them; each operation page lists what applies.
+
+| Header | Value |
+| --- | --- |
+| `clientID` | Your client identifier, assigned at registration. |
+| `signatureMethod` | Always `HmacSHA256`. |
+| `timestamp` | Request time in milliseconds since 1970-01-01 00:00:00 GMT. Must be **≥ the timestamp of your previous request** (replay protection). |
+| `nonce` | Random string, unique per request, at most 36 ASCII characters. |
+| `signature` | See below. |
+| `rateLimitFactor` | **Conditional.** Base64 of `{"key":"suaMethod","value":["FR","NFC"]}`. Required for step-up authentication and for signing requests that use `suaMethod` (spec v2.5.2). |
+
+## Computing the signature
+
+```txt
+message   = clientID + signatureMethod + timestamp + nonce + encrypted_request_body
+signature = URLEncode( Base64( HMAC-SHA256( key = clientSecret, message ) ) )
+```
+
+- `encrypted_request_body` is the body **exactly as you send it**, after encryption — the JSON string `{"content":"…"}`. For requests without a body (Request CEK, Revoke CEK) it is empty.
+- The spec's examples send the URL-encoded form, e.g. `5X42Y1B7MEd8Mm%2BonwjiQz9VCZkkrntADskXsYntavU%3D`.
+- Serialize the body once and sign and send those same bytes; re-serializing can change whitespace and break the signature (`D20006`).
+
+<Tabs>
+<TabItem label="Node.js">
+
+```js
+import crypto from 'node:crypto'
+
+function sign({ clientId, clientSecret, timestamp, nonce, body = '' }) {
+  const message = `${clientId}HmacSHA256${timestamp}${nonce}${body}`
+  const hash = crypto.createHmac('sha256', clientSecret).update(message, 'utf8').digest('base64')
+  return encodeURIComponent(hash)
+}
+```
+
+</TabItem>
+<TabItem label="Python">
+
+```python
+import base64, hashlib, hmac, urllib.parse
+
+def sign(client_id, client_secret, timestamp, nonce, body=""):
+    message = f"{client_id}HmacSHA256{timestamp}{nonce}{body}"
+    digest = hmac.new(client_secret.encode(), message.encode(), hashlib.sha256).digest()
+    return urllib.parse.quote(base64.b64encode(digest).decode(), safe="")
+```
+
+</TabItem>
+<TabItem label="Java (from the spec)">
+
+```java
+String message = clientID + signatureMethod + timestamp + nonce + encryptedRequestBody;
+Mac sha256Hmac = Mac.getInstance("HmacSHA256");
+SecretKeySpec secretKey = new SecretKeySpec(secret.getBytes(), "HmacSHA256");
+sha256Hmac.init(secretKey);
+String hash = Base64.encodeBase64String(sha256Hmac.doFinal(message.getBytes()));
+// If the hash needs to be URL encoded
+String signature = URLEncoder.encode(hash, "UTF-8");
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="caution" title="Common causes of D20006">
+  Signing the plaintext instead of the encrypted body · signing a different JSON serialization than the one sent · a header value that differs from the signed one (e.g. `timestamp` sent as a different string) · the wrong client secret for the environment. Separately, keep `timestamp` non-decreasing and never reuse a `nonce`.
+</Aside>
+
+## Try it
+
+<SignerTool />
+
+The request body still has to be encrypted with the current CEK — the tool does both. See [Encryption](/security/encryption/).

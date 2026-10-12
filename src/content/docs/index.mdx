@@ -1,0 +1,53 @@
+---
+title: iAM Smart API
+description: Interactive documentation for the Hong Kong iAM Smart API Specification v2.5.2 — every endpoint, callback and app deep link, plus in-browser signing and encryption tools.
+template: splash
+hero:
+  tagline: Every endpoint, callback and app deep link from the iAM Smart API Specification v2.5.2, with in-browser tools for signing, encryption and decryption.
+  actions:
+    - text: Quick start
+      link: /start/quick-start/
+      icon: right-arrow
+    - text: API reference
+      link: /api/
+      icon: open-book
+      variant: secondary
+    - text: Developer tools
+      link: /tools/
+      icon: setting
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard, Aside } from '@astrojs/starlight/components'
+
+<Aside type="note">
+  Unofficial rendering of the <a href="https://iamsmart.cyberport.hk/wp-content/uploads/iAM_Smart_API_Specification_v2.5.2.pdf">iAM Smart API Specification v2.5.2</a> (February 2026). The PDF remains authoritative; differences found while transcribing are listed under <a href="/reference/errata/">Spec errata</a>.
+</Aside>
+
+## What's covered
+
+<CardGrid>
+  <Card title="39 operations, 12 callbacks" icon="document">
+    The full API as an OpenAPI 3.1 file, rendered as browsable reference pages with decrypted request and response examples.
+  </Card>
+  <Card title="Security, explained once" icon="approve-check">
+    How HMAC request signing and AES-256-GCM content encryption work, with code you can paste.
+  </Card>
+  <Card title="Try it in the browser" icon="laptop">
+    Sign and encrypt requests, unwrap the CEK, decrypt callbacks, hash HKIC numbers and build getQR / app links — all locally.
+  </Card>
+  <Card title="Flows by scenario" icon="list-format">
+    Same device vs. different device, website vs. app, appv1 vs. appv2 — step by step for every feature.
+  </Card>
+</CardGrid>
+
+## Pick your feature
+
+<CardGrid>
+  <LinkCard title="Authentication" description="Log users in with iAM Smart." href="/guides/authentication/" />
+  <LinkCard title="Form filling" description="Profiles API, Form Filling v2 and anonymous form filling." href="/guides/form-filling/" />
+  <LinkCard title="Digital signing" description="Hash, PDF and bulk signing with iAM Smart+." href="/guides/digital-signing/" />
+  <LinkCard title="Step-up authentication" description="Re-verify users with NFC and facial recognition." href="/guides/step-up-authentication/" />
+  <LinkCard title="Re-authentication" description="Ask a logged-in user to confirm again." href="/guides/re-authentication/" />
+  <LinkCard title="CDEG integration" description="Query and request data-sharing consent." href="/guides/cdeg/" />
+</CardGrid>

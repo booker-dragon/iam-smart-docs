@@ -1,0 +1,24 @@
+---
+title: CDEG Integration
+description: Check and request a user's consent to share data through the Consented Data Exchange Gateway (CDEG).
+---
+
+import { Steps } from '@astrojs/starlight/components'
+
+Scope: `eidapi_auth` plus the *CDEG Consent* API access right · Spec §13 (new in v2.5.0)
+
+The Consented Data Exchange Gateway (CDEG) lets government data providers share data — such as the address records that appear in profile data with an `addressProvider` — once the user has consented. With a valid `accessToken` you can check that consent and, if missing, ask for it.
+
+<Steps>
+
+1. Call [Obtain User's Consent Result](/api/operations/obtain-consent-result/) with `providerCode` (e.g. `WSD`), `accessToken` and `openID`. `consentResult: true` means the user has consented to “All Government B/Ds” or to that provider — you're done.
+
+2. Otherwise call [Submit CDEG Consent Request](/api/operations/request-consent/) with `providerCode`, `accessToken`, `openID`, a registered `redirectURI`, `businessID` and `source`.
+
+3. Different device (`authByQR: true`): ask the user to continue in the app. Same device: open `<scheme>://request-consent?ticketID=…` (valid 18 minutes).
+
+4. Receive the [consent callback](/api/webhooks/cdeg-consent-result-callback/) with `consentResult`. Treat the request as failed after 18 minutes.
+
+</Steps>
+
+Errors: `D42001` user rejected · `D42002` timeout · `D42003` failed.

@@ -1,0 +1,39 @@
+---
+title: Source values
+description: Values for the `source` parameter — which browser or app calling method started the request (spec Appendix B).
+---
+
+import SourceDetector from '../../../components/SourceDetector.astro'
+
+Detect the user agent of the browser your user is on and pass the matching `source`. iAM Smart uses it to decide how to hand the user to the app and back.
+
+<SourceDetector />
+
+## Websites (different device, or same device)
+
+| Platform | Browser | `source` |
+| --- | --- | --- |
+| Android | Chrome | `Android_Chrome` |
+| Android | Firefox | `Android_Firefox` |
+| Android | Edge | `Android_Edge` |
+| Android | Samsung built-in browser | `Android_Samsung` |
+| Android | Huawei built-in browser | `Android_Huawei` |
+| Android | Xiaomi built-in browser | `Android_Xiaomi` |
+| Android | iAM Smart in-app browser | `Android_IMS_InAppBrowser` |
+| iOS | Safari | `iOS_Safari` |
+| iOS | Chrome | `iOS_Chrome` |
+| iOS | Firefox | `iOS_Firefox` |
+| iOS | Edge | `iOS_Edge` |
+| iOS | iAM Smart in-app browser | `iOS_IMS_InAppBrowser` |
+| Desktop | Chrome, IE, Edge, Firefox, Safari | `PC_Browser` |
+
+## Online service app on the same device
+
+| API version | Calling method | `source` |
+| --- | --- | --- |
+| appv2 | Universal Link (iOS) | `App_Link` |
+| appv2 | Package name (Android) | `App_Package` |
+| appv1 | URL scheme | `App_Scheme` (only if the support team approves) |
+| appv1 | Universal Link (iOS) / App Link (Android) | `App_Link` |
+
+[Request QR Page](/api/operations/get-qr-page/) does not accept `App_Link` or `App_Scheme`. An unsupported value returns `D20007`.

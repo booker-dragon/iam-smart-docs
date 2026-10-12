@@ -1,0 +1,24 @@
+---
+title: Anonymous Bulk Digital Signing
+description: Bulk signing for a user who has not logged in — HKIC-restricted, with a BSQC token obtained after consent.
+---
+
+import { Steps } from '@astrojs/starlight/components'
+
+Scope: `eidapi_bulksign` · Spec §10
+
+<Steps>
+
+1. **Submit** [Request Anonymous Bulk Digital Signing](/api/operations/request-anonymous-bulk-digital-signing/) with `businessID`, `callbackResultURI`, **`HKICHash` (required)**, `serviceName`, `requestName`, optional `department` / `maxCallbackSigs`, and the `documents`. JSON or `multipart/form-data` (`reqFile` + `reqMetadata`). You get a `ticketID`.
+
+2. **Hand over** — browser: [Request QR Page](/api/operations/get-qr-page/) with `scope=eidapi_bulksign` and the `ticketID`. Same-device app: `<scheme>://anon_bulk-sign` (appv1: `ticketID`, `source`, `redirectURI`, `state`) or `v2_anon_bulk-sign` (appv2).
+
+3. **Receive the authorisation code** in your app or on your callback, and exchange it with [Request accessToken & Tokenised ID](/api/operations/request-access-token/).
+
+4. **Get the BSQC token** with [Request BSQC Token](/api/operations/request-bsqc-token/) — this replaces the BSQC token callback of the logged-in flow. Valid for 1 day.
+
+5. **Receive, then acknowledge** the [signing results](/api/webhooks/bulk-signing-result-callback/) exactly as in [Bulk Digital Signing](/guides/bulk-digital-signing/), and use the BSQC token to [enquire](/api/operations/enquire-bulk-signing-status/) or [cancel](/api/operations/cancel-bulk-signing-request/).
+
+</Steps>
+
+appv1 for anonymous bulk signing supports one mobile app per client ID; register the dedicated app in the Self-Service Portal and with the support team.

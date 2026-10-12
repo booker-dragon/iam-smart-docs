@@ -1,0 +1,22 @@
+---
+title: Anonymous Step-up Authentication
+description: Verify a person who has not logged in, with NFC and/or facial recognition, restricted to a specific HKIC.
+---
+
+import { Steps } from '@astrojs/starlight/components'
+
+Scope: `eidapi_sua` · Spec §12
+
+<Steps>
+
+1. Call [Request Anonymous Step-up Authentication](/api/operations/request-anonymous-step-up-authentication/) with `businessID`, **`HKICHash`**, `suaMethod`, and optionally `suaMessage` and `suaWaitPeriod`. In **different-device** flows also send `identifierCode` (≤ 10 characters), which the iAM Smart app shows again so the user can match the request. Send the `rateLimitFactor` header. You get a `ticketID` valid for 12 minutes.
+
+2. Hand over: browser → [Request QR Page](/api/operations/get-qr-page/) with `scope=eidapi_sua` and the `ticketID`; same-device app → `<scheme>://anon_sua` (appv1) or `<scheme>://v2_anon_sua` (appv2).
+
+3. Receive the authorisation code and exchange it with [Request accessToken & Tokenised ID](/api/operations/request-access-token/).
+
+4. Fetch the result with [Obtain Anonymous Step-up Authentication Result](/api/operations/obtain-anonymous-step-up-authentication-result/) — `isPassed` is `true` if the person passed.
+
+</Steps>
+
+The workflow only proceeds when the HKIC of the person confirming matches your `HKICHash` (SHA-256 of the identifier without check digit, Base64 — try the [calculator](/tools/#hkichash-calculator)).

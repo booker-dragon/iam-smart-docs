@@ -1,0 +1,58 @@
+---
+title: Digital Signing
+description: Let an iAM Smart+ user sign a document hash or PDF with legal backing, from a website or app on the same or a different device.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components'
+import HkicHashTool from '../../../components/HkicHashTool.astro'
+
+Scope: `eidapi_sign` · Spec §6
+
+iAM Smart+ signatures carry legal backing under the Electronic Transactions Ordinance (Cap. 553). You never send the document — only its **hash** (`hashCode`) or a **PDF digest** (`docDigest`).
+
+**Prerequisites:** a logged-in user (`accessToken`, `openID`) who is an iAM Smart+ user (`userType: sign`). If not, prompt them to upgrade.
+
+## Choose the API
+
+| | Hash | PDF |
+| --- | --- | --- |
+| Browser or app, appv1 | [Request Digital Signing](/api/operations/request-digital-signing/) | [Request PDF Digital Signing](/api/operations/request-pdf-digital-signing/) |
+| App on same device, appv2 | [Request Digital Signing (appv2)](/api/operations/request-digital-signing-appv2/) | [Request PDF Digital Signing (appv2)](/api/operations/request-pdf-digital-signing-appv2/) |
+| App link | `hash-sign` / `v2_hash-sign` | `pdf-sign` / `v2_pdf-sign` |
+| Result callback | [Signing result](/api/webhooks/signing-result-callback/) | [PDF signing result](/api/webhooks/pdf-signing-result-callback/) |
+
+- **Hash:** compute the hash yourself, Base64 encode it. `sigAlgo` is `SHA256withRSA` (default) or `NONEwithRSA`; with `NONEwithRSA` the `hashCode` must already be a SHA-256 hash. You get back `signature`, `timestamp` and the user's `cert`.
+- **PDF:** compute the digest for the `Adobe.PPKLite` filter and `adbe.pkcs7.detached` subfilter, Base64 encoded. You get back a PKCS#7 `pdfSignature` to embed in the PDF.
+
+## Flow
+
+<Steps>
+
+1. Your server calls the request API with `businessID`, `serviceName`, `documentName`, the hash or digest and optionally `HKICHash`, `department` and step-up options.
+2. **Different device** (`authByQR: true`): show the identification code and ask the user to continue in the iAM Smart app (it gets a push notification). **Same device** (`authByQR: false`): open the app with the `ticketID` (valid 18 minutes).
+3. The user checks the identification code and follows the on-screen instructions (FIDO, plus NFC/FR if requested).
+4. iAM Smart posts the result to your `redirectURI` / `serverRedirectURI`. Treat the request as failed after **18 minutes**.
+5. Verify the signature, then call [Acknowledge Digital Signing Result](/api/operations/acknowledge-signing-result/) with `SR001` (accepted), `SR002` (rejected) or `SR003` (not received).
+
+</Steps>
+
+## Restricting who can sign
+
+Send `HKICHash` and the request is only processed if the signer's HKIC matches — SHA-256 of the HKIC identifier **without** the check digit, Base64 encoded.
+
+<HkicHashTool />
+
+## Extra identity checks (step-up)
+
+From spec v2.4.0, signing requests accept step-up authentication:
+
+- `suaMethod` — `{"unary": ["FR"]}`, `{"unary": ["NFC"]}` or `{"and": ["FR", "NFC"]}`. FIDO verification always runs first; NFC reads the user's own smart HKIC, FR matches a selfie against ImmD records. The request fails as soon as one method fails.
+- `suaWaitPeriod` — minimum hours since the account was created (0–720); the larger of this and the system's waiting period applies.
+- Send the [`rateLimitFactor`](/security/signing/) header (spec v2.5.2).
+- Apply for NFC / FR with the support team; they must be granted in the e-Service Management Portal.
+
+Related errors: `D77003` device not supported for NFC, `D77004` user still in waiting period, `D70005` inconsistent HKIC number.
+
+<Aside type="tip">
+  For many documents at once, use [Bulk Digital Signing](/guides/bulk-digital-signing/) — up to 1000 hashes or digests in one consent.
+</Aside>

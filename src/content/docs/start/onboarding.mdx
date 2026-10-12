@@ -1,0 +1,67 @@
+---
+title: Onboarding & environments
+description: What to prepare, what the support team gives you, and the testing and production endpoints, app schemes and portals.
+---
+
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components'
+
+## Environments
+
+| | Testing | Production |
+| --- | --- | --- |
+| API domain | `apigw-isit.staging-eid.gov.hk` | `apigw.iamsmart.gov.hk` |
+| iAM Smart app URL scheme | `hk.gov.iamsmart.testapp://` | `hk.gov.iamsmart://` |
+| iAM Smart app | By invitation (App Store / Play Store tester list) | App Store, Google Play, AppGallery or APK from the iAM Smart site |
+| Self-Service Portal (ESP) | [portal-isit.staging-eid.gov.hk](https://portal-isit.staging-eid.gov.hk/ESP/index.html) | [portal.iamsmart.gov.hk](https://portal.iamsmart.gov.hk/ESP/index.html) |
+| KEK certificate | Trial certificate from a Hong Kong Recognised CA is allowed | Production certificate from a Hong Kong Recognised CA |
+| Your callback endpoints | HTTPS with a production certificate | HTTPS with a production certificate |
+
+Your callback endpoints must support TLS 1.2 or compatible.
+
+## Onboarding journey
+
+<Tabs>
+<TabItem label="Testing">
+<Steps>
+
+1. Prepare before applying:
+   - an encipherment (KEK) certificate issued by a Hong Kong Recognised Certification Authority;
+   - an internet-facing HTTPS endpoint for callbacks (depends on the APIs you use);
+   - testers' Apple IDs and Google Play accounts for the test app;
+   - your iOS Universal Link, and your Android package name and activity class name (for app integrations).
+
+2. After approval the support team creates your **client ID**, emails your online service administrator an ESP account, and provides a test iAM Smart account.
+
+3. In the Self-Service Portal, the administrator, creator and approver:
+   - set up creator and approver accounts;
+   - upload the KEK certificate;
+   - check the **client secret** (used for request signing);
+   - whitelist callback / `redirectURI` / Direct Login v2 URLs;
+   - register the Android package name and SHA-256 app fingerprint;
+   - register the iOS Universal Link.
+
+</Steps>
+</TabItem>
+<TabItem label="Production">
+<Steps>
+
+1. Record your UI and workflow for the **UI and Workflow Verification** and submit the recordings to the support team.
+2. Apply for a production KEK certificate from a Hong Kong Recognised CA.
+3. After the UI/workflow verification is approved, submit the production application forms.
+4. After approval, repeat the ESP setup for production: creator/approver accounts, callback / `redirectURI` / Direct Login v2 whitelist, Android package name and SHA-256 fingerprint, iOS Universal Link.
+
+</Steps>
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+  Scopes are approved per client ID. Apply for each scope you need in advance and check the approved list in the ESP; calls with unapproved scopes fail with `D20012` or `D20015`.
+</Aside>
+
+## Verifying that callbacks come from iAM Smart
+
+You may request iAM Smart's client certificate during onboarding and require mutual TLS on your callback endpoint. With Nginx, for example, set `ssl_client_certificate` and `ssl_verify_client`. See [Receiving callbacks](/security/callbacks/).
+
+## Plan for outages
+
+The spec asks online services to prepare a fallback when the iAM Smart API is unavailable — for example switching to a paper or manual process, or hiding iAM Smart options temporarily. The gateway can also return HTTP 429 when you call it too often; cache the CEK rather than requesting it per call.

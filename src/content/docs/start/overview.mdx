@@ -1,0 +1,59 @@
+---
+title: Overview
+description: What the iAM Smart APIs do, the two account versions, user profile data and how every integration fits together.
+---
+
+import { Aside, CardGrid, LinkCard } from '@astrojs/starlight/components'
+
+“iAM Smart” is the Hong Kong SAR Government's digital identity platform. Online services integrate with it through a REST gateway plus the iAM Smart mobile app, which the user approves requests in.
+
+## API functions
+
+| Function | With service login | Without service login (anonymous) | Scope |
+| --- | --- | --- | --- |
+| Authentication (login) | [Guide](/guides/authentication/) | — | `eidapi_auth` |
+| Profiles (GRO only) | [Guide](/guides/profiles/) | — | `eidapi_profiles` |
+| Form filling (e-ME) | [Form Filling v2](/guides/form-filling/) | [Anonymous Form Filling](/guides/anonymous-form-filling/) | `eidapi_formFilling` |
+| Digital signing | [Guide](/guides/digital-signing/) | [Anonymous Digital Signing](/guides/anonymous-digital-signing/) | `eidapi_sign` |
+| Bulk digital signing | [Guide](/guides/bulk-digital-signing/) | [Anonymous Bulk Signing](/guides/anonymous-bulk-digital-signing/) | `eidapi_bulksign` |
+| Re-authentication | [Guide](/guides/re-authentication/) | — | `eidapi_fr` |
+| Step-up authentication (NFC / FR) | [Guide](/guides/step-up-authentication/) | [Anonymous Step-up](/guides/anonymous-step-up-authentication/) | `eidapi_sua` |
+| CDEG consent | [Guide](/guides/cdeg/) | — | `eidapi_auth` |
+
+“With service login” means the user has already logged in with iAM Smart and you hold a valid `accessToken` and `openID`. Anonymous workflows start without a login: you get a `ticketID`, the user approves in the app, and you exchange a one-time authorisation code for a **single-use** token to fetch the result.
+
+The spec's introduction also mentions an In-App Browser API, documented separately in the *iAM Smart In-App Browser Integration Technical Reference*.
+
+## Account versions
+
+| | iAM Smart | iAM Smart+ |
+| --- | --- | --- |
+| Authentication, form filling, notifications | Yes | Yes |
+| Digital signing (legal backing under the Electronic Transactions Ordinance, Cap. 553) | No | Yes |
+| Chinese name verified | No | Yes (`chNameVerified` returned) |
+| `userType` in the token response | `default` | `sign` |
+
+iAM Smart+ can be registered remotely with a smart HKIC and an NFC phone, or in person at kiosks, counters and mobile registration teams. When a signing request comes from an iAM Smart (non-plus) user, guide them to upgrade.
+
+## User profile data
+
+- **`profileFields`** — account information for **identity verification**: HKIC number, English name, Chinese name, date of birth, gender. Intended for account opening, account matching and similar checks.
+- **`eMEFields`** — the user's voluntary “e-ME” profile for **form filling**: the same account fields plus prefix, marital status, phone numbers, email, residential and postal address, education level and an address-proof e-bill (from CLP, HK Electric, Towngas or the Water Supplies Department). Users may edit pre-filled values.
+
+Requesting both in one transaction updates both the authentication and form-filling statistics. Field formats and lengths are in [Profile fields](/reference/profile-fields/).
+
+<Aside type="caution">
+  When ImmD records change, the user is asked to re-register and `lastModifiedDate` (returned by *Request accessToken*) is updated. Use it to decide when to re-verify stored identity data.
+</Aside>
+
+## How every call works
+
+1. Get a **content encryption key** (CEK) with [Request CEK](/api/operations/request-cek/) and unwrap it with your KEK private key.
+2. **Encrypt** each POST body with AES-256-GCM and **sign** it with HMAC-SHA256 — see [Request signing](/security/signing/) and [Encryption](/security/encryption/).
+3. **Decrypt** the response `content`, and decrypt callbacks using the CEK that arrives wrapped in their `secretKey`.
+4. Check `code`: business errors come back as HTTP 200 with a code other than `D00000` — see [Return codes](/reference/return-codes/).
+
+<CardGrid>
+  <LinkCard title="Onboarding & environments" href="/start/onboarding/" description="Client ID, certificates, whitelists, testing vs production." />
+  <LinkCard title="Quick start" href="/start/quick-start/" description="The full login flow, end to end." />
+</CardGrid>

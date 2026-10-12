@@ -1,0 +1,95 @@
+---
+title: Profile fields
+description: Every profileFields and eMEFields value, its JSON structure and maximum lengths (spec Appendix A).
+---
+
+import { Aside } from '@astrojs/starlight/components'
+
+Most fields follow the Digital Policy Office's [common data schemas](https://www.digitalpolicy.gov.hk/en/our_work/data_governance/policies_standards/interoperability_framework/common_schemas/). Lengths given as *a/b* are Chinese/English.
+
+## Which list can request what
+
+| Field | `profileFields` | `eMEFields` |
+| --- | :---: | :---: |
+| `idNo`, `enName`, `chName`, `birthDate`, `gender` | ✓ | ✓ |
+| `prefix`, `maritalStatus`, `homeTelNumber`, `officeTelNumber`, `mobileNumber`, `emailAddress` | | ✓ |
+| `residentialAddress`, `postalAddress`, `educationLevel` | | ✓ |
+| `addressDocInfo`, `addressDocFile` | | ✓ |
+
+`chNameVerified` is returned automatically with `chName` for iAM Smart+ users — ImmD character code points (including Private Use Area characters that may not render). Display `chName`; use `chNameVerified` for matching.
+
+## Fields
+
+| Field | Common schema | Sub-field | Type | Max length |
+| --- | :---: | --- | --- | --- |
+| `idNo` | Yes | `Identification` · `CheckDigit` | String | 8 · 1 |
+| `prefix` | Yes | | String | 35 |
+| `enName` | Yes | `UnstructuredName` | String | 40 |
+| `chName` | Yes | `ChineseName` | String | 6 |
+| `chNameVerified` | — | | String | 6 |
+| `birthDate` | — | `YYYYMMDD`; may be `19960000` or `19960100` if day/month unknown | String | 8 |
+| `gender` | Yes | | String | 1 |
+| `maritalStatus` | Yes | | String | 1 |
+| `homeTelNumber` / `officeTelNumber` / `mobileNumber` | Yes | `CountryCode` · `SubscriberNumber` | String | 3 · 15 |
+| `emailAddress` | — | | String | 128 |
+| `educationLevel` | Yes | | String | 1 |
+
+### Addresses
+
+`residentialAddress` holds exactly one of `ChiPremisesAddress`, `EngPremisesAddress` or `FreeFormatAddress`; `postalAddress` may also be a `PostBoxAddress` (`EngPostBox` or `ChiPostBox`). Premises addresses are either a Standard/Village address or a Lot address. When the address came from CDEG, an `addressProvider` object (`providerCode`, `lastRetrievalDate`) is added.
+
+| Part | Sub-field | Type | Max length |
+| --- | --- | --- | --- |
+| Standard / Village | `Region` | String | 3 |
+| | `DcDistrict` · `Sub-district` | String | 3 · 40 |
+| | `BuildingName` | String | 85/195 |
+| | `EstateName` · `PhaseNo` · `PhaseName` | String · Decimal · String | 25/80 · 2 · 25/80 |
+| | `StreetName` · `BuildingNoFrom` | String | 24/67 · 7 |
+| | `BlockDescriptor` · `BlockNo` | String | 14/35 · 5/15 |
+| | `FloorNum` · `FloorDescription` | String/Decimal · String | 3 · 10/20 |
+| | `UnitDescriptor` · `UnitNo` | String | 15/16 · 23 |
+| Lot | `DdType` · `DdNo` | String | 4/5 · 4 |
+| | `LotType` · `LotNo` | String | 8/15 · 13 |
+| | `LotSection1–3` · `LotSubsection1` | String | 4 · 4 |
+| | `LotSubsection2` · `LotSubsection3` | String | 3 · 3 |
+| | `LotExtendPortionCode` | String | 1 |
+| Free format (not common schema) | `LanguageCode` · `AddressLine1–3` | String | 2 · 250 |
+| Post box | `PoBoxNo` · `PostOffice` · `PostOfficeRegion` | Decimal · String · String | 6 · 15/50 · 5/30 |
+
+Example of a Chinese standard address:
+
+```json
+"residentialAddress": {
+  "ChiPremisesAddress": {
+    "Region": "香港",
+    "ChiDistrict": { "DcDistrict": "WC", "Sub-district": "灣仔" },
+    "BuildingName": "灣仔政府大樓",
+    "ChiEstate": { "EstateName": "華富", "ChiPhase": { "PhaseName": "華清" } },
+    "ChiStreet": { "StreetName": "港灣道", "BuildingNoFrom": "12" },
+    "ChiBlock": { "BlockDescriptor": "座", "BlockNo": "東" },
+    "Chi3dAddress": {
+      "ChiFloor": { "FloorNum": "15" },
+      "ChiUnit": { "UnitDescriptor": "室", "UnitNo": "A1" }
+    }
+  },
+  "addressProvider": { "providerCode": "wsd", "lastRetrievalDate": 1560853718006 }
+}
+```
+
+### Address proof (e-bill)
+
+| Field | Sub-field | Type | Max length |
+| --- | --- | --- | --- |
+| `addressDocInfo` | `enProviderName` / `tcProviderName` / `scProviderName` | String | 255 |
+| | `enUserName` / `tcUserName` | String | 40 |
+| | `addressLine1–4` of `enServiceAddress`, `tcServiceAddress`, `enPostalAddress`, `tcPostalAddress` | String | 80 |
+| | `lastRetrievalDate` (epoch ms) | Long | 13 |
+| `addressDocFile` (JSON callback) | `docFile` (Base64 PDF) · `docHash` (SHA-256) · `billDate` (epoch ms) | String · String · Long | — · 64 · 13 |
+| `addressDocFile` (multipart callback) | `docHash` · `billDate` | String · Long | 64 · 13 |
+| `docFile` (multipart callback) | PDF binary part | Binary | — |
+
+Providers: The Hong Kong and China Gas Company Limited, CLP Power Hong Kong Ltd., HK Electric, Water Supplies Department.
+
+<Aside type="caution">
+  The spec doesn't list the code values for `gender`, `maritalStatus` or `educationLevel`; its examples use `M`, `S` and `T`. Refer to the DPO common schemas for the code tables.
+</Aside>

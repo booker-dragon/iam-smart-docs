@@ -1,0 +1,32 @@
+---
+title: Anonymous Digital Signing
+description: Collect an iAM Smart+ signature on a hash or PDF from a user who has not logged in, restricted to a specific HKIC.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components'
+
+Scope: `eidapi_sign` · Spec §7
+
+Anonymous signing needs no prior login. Because anyone could pick up the request, `HKICHash` is **required**: only the person whose HKIC matches can sign. The final `accessToken` is single use.
+
+<Steps>
+
+1. **Start** — [Request Anonymous Digital Signing](/api/operations/request-anonymous-digital-signing/) (hash) or [Request Anonymous PDF Digital Signing](/api/operations/request-anonymous-pdf-digital-signing/) with `businessID`, `HKICHash`, `serviceName`, `documentName`, the hash/digest and optional step-up options. Send the `rateLimitFactor` header if you use `suaMethod`. You get a `ticketID` valid for 12 minutes.
+
+2. **Hand over** — redirect the browser to [Request QR Page](/api/operations/get-qr-page/) with `scope=eidapi_sign` and the `ticketID`, or from a same-device app open `anon_hash-sign` / `anon_pdf-sign` (appv1) or `v2_anon_hash-sign` / `v2_anon_pdf-sign` (appv2). See [App deep links](/reference/deep-links/).
+
+3. **The user consents** in the iAM Smart app after checking the identification code.
+
+4. **Receive the code** on your [authCode callback](/api/webhooks/auth-code-callback/) (or in your app) and exchange it with [Request accessToken & Tokenised ID](/api/operations/request-access-token/) within 1 minute.
+
+5. **Fetch the result** — [Obtain Anonymous Digital Signing Result](/api/operations/obtain-anonymous-digital-signing-result/) or [Obtain Anonymous PDF Digital Signing Result](/api/operations/obtain-anonymous-pdf-digital-signing-result/).
+
+6. **Acknowledge** — [Acknowledge Digital Signing Result](/api/operations/acknowledge-signing-result/) with `SR001`, `SR002` or `SR003`.
+
+</Steps>
+
+<Aside type="caution">
+  The spec's example request for the PDF result shows `/api/v1/anonymous/signing/getResult`, while its API table says `/api/v1/anonymous/pdfsigning/getResult`. This site follows the table; confirm with the support team if you get unexpected errors. See [Spec errata](/reference/errata/).
+</Aside>
+
+The HKICHash, step-up and signature format rules are the same as for [Digital Signing](/guides/digital-signing/).

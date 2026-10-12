@@ -1,0 +1,77 @@
+---
+title: Receiving callbacks
+description: The callbacks iAM Smart sends to your endpoints, how to verify and decrypt them, and how long to wait for each.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components'
+
+iAM Smart reaches your systems in three ways:
+
+| Kind | Transport | Used by | Encrypted |
+| --- | --- | --- | --- |
+| Browser redirect | `GET` to your `redirectURI` with query parameters | Login and anonymous workflows ([authCode callback](/api/webhooks/auth-code-callback/), [Direct Login v2](/api/webhooks/direct-login-v2-callback/)) | No — only a short-lived `code` |
+| App hand-back | Universal Link (iOS), App Link or Android intent extras | Same-device app flows — see [App deep links](/reference/deep-links/#returning-to-your-app) | No |
+| Server callback | `POST` from iAM Smart to your registered endpoint | Form filling, signing, re-auth, bulk signing, step-up, CDEG consent | Yes |
+
+All callback URLs must be whitelisted in the Self-Service Portal, served over HTTPS (TLS 1.2+) with a production certificate.
+
+## Decrypting a server callback
+
+A JSON callback looks like this on the wire:
+
+```json
+{
+  "txID": "<T=938ffb193b4b4370b6c2584372c6a588>",
+  "code": "D00000",
+  "message": "SUCCESS",
+  "secretKey": "XlUu98zV6/W4LPDfZZxzOVY62e4PHZ1e3BzENgA/ysO+…",
+  "content": "AAAADFaP8/FuTcoymbq2hswpgHER9BUM5itaTKWo2/UwtG4w…"
+}
+```
+
+<Steps>
+
+1. Decrypt `secretKey` with your KEK private key to get the CEK for this callback. iAM Smart may have generated a new CEK just for it, so don't assume it equals your cached one.
+2. Decrypt `content` with that CEK (same AES-256-GCM format as [requests](/security/encryption/#ciphertext-format)).
+3. Match `businessID` to your request and verify `state`.
+4. Respond with HTTP 200, then process asynchronously if the work is slow.
+
+</Steps>
+
+On errors (`code` other than `D00000`), `content` may be empty or hold only `businessID`.
+
+### Multipart callbacks
+
+Two callbacks use `multipart/form-data`, with every part encrypted with the same CEK:
+
+- [Form filling](/api/webhooks/form-filling-callback-multipart/) when you set `callbackContentType: "multipart/form-data"`: parts `docFile` (the PDF e-bill) and `profile` (the JSON envelope, which carries `secretKey`).
+- [Bulk signing result](/api/webhooks/bulk-signing-result-callback/): parts `sigFile` (signatures) and `sigMetada` (metadata — the spec spells it this way). On failure only `sigMetada` is sent.
+
+## Verifying the sender (optional)
+
+The spec supports TLS client authentication: request iAM Smart's certificate during onboarding and require it on your callback endpoint. With Nginx:
+
+```nginx
+server {
+    listen 443 ssl;
+    ssl_client_certificate /etc/nginx/iamsmart-ca.pem;  # certificate provided by iAM Smart
+    ssl_verify_client on;
+    # …
+}
+```
+
+Encryption alone does not prove who sent a callback: your KEK certificate is public, so anyone can wrap a key with it. Use client-certificate verification where possible, and always match `businessID` and `state` to a request you actually made.
+
+## How long to wait
+
+| Callback | Give up after |
+| --- | --- |
+| authCode (login) | 18 minutes |
+| authCode (anonymous workflows) | 12 minutes |
+| Form filling, signing, PDF signing, re-authentication, step-up, CDEG consent | 18 minutes |
+| BSQC token (bulk signing) | 18 minutes |
+| Bulk signing result | 1 day |
+
+<Aside type="tip">
+  Use the [callback decryptor](/tools/#decryptor) to inspect a captured callback during testing.
+</Aside>

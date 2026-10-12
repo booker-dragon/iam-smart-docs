@@ -1,0 +1,27 @@
+---
+title: Scopes
+description: The iAM Smart authorisation scopes, which APIs they unlock, and how to request them.
+---
+
+iAM Smart follows the OAuth 2.0 model: each API needs an approved scope (spec §2.5). Apply for scopes with the support team in advance; the approved list for your client ID is visible in the Self-Service Portal.
+
+| Scope | API |
+| --- | --- |
+| `eidapi_auth` | Authentication · CDEG Integration |
+| `eidapi_profiles` | Form Filling with Service Login (Profiles API) |
+| `eidapi_formFilling` | Form Filling (v2) · Form Filling without Service Login (anonymous) |
+| `eidapi_sign` | Digital Signing, with or without service login |
+| `eidapi_fr` | Re-authentication with service login |
+| `eidapi_bulksign` | Bulk Digital Signing, with or without service login |
+| `eidapi_sua` | Step-up Authentication, with or without service login |
+| `eidapi_eMe` | Form Filling (v1) — **shut down 31 Dec 2025** |
+
+## Combining scopes
+
+Request every scope you will need **in the login request**, as a space-delimited, case-sensitive, URL-encoded list. The user authorises them together, and the token's `scope` echoes what was granted:
+
+```txt
+&scope=eidapi_auth%20eidapi_formFilling%20eidapi_sign
+```
+
+Errors: `D20012` the scope or API is not approved for your client · `D20015` scope mismatch between the ESP approval and your service catalogue configuration.

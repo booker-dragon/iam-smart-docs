@@ -1,0 +1,51 @@
+---
+title: Local mock server
+description: Run a local stand-in for the iAM Smart gateway that enforces signing and encryption, so you can build and test before you have test credentials.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components'
+
+[`examples/mock-server/mock-iam-smart.mjs`](https://github.com/booker-dragon/iam-smart-docs/blob/main/examples/mock-server/mock-iam-smart.mjs) is a dependency-free Node.js server that behaves like the gateway at the transport level:
+
+- verifies the five signature headers (`D20006` on mismatch, `D20004` on a reused nonce);
+- issues a CEK wrapped with **your** KEK public key and rejects requests without a valid one (`D30002`);
+- decrypts request bodies and encrypts response `content`;
+- serves a fake QR page with *Approve* / *Deny* links that redirect to your `redirectURI` with `code` + `state` (or `error_code`);
+- issues single-use codes and tokens (single-use in anonymous flows, like the real service);
+- can POST an encrypted callback to any URL you give it.
+
+Business responses are canned examples from the spec — it does not know real users.
+
+<Steps>
+
+1. Create a test key pair (never reuse production keys):
+
+   ```sh
+   openssl req -x509 -newkey rsa:2048 -nodes -days 365 -subj "/CN=iam-smart-test" \
+     -keyout kek-private.pem -out kek-cert.pem
+   ```
+
+2. Start the mock:
+
+   ```sh
+   CLIENT_ID=demo-client CLIENT_SECRET=demo-secret KEK_PUBLIC_KEY=./kek-cert.pem \
+     node examples/mock-server/mock-iam-smart.mjs
+   # Mock iAM Smart listening on http://localhost:8787
+   ```
+
+   `RSA_PADDING=oaep-sha1` or `oaep-sha256` switches the CEK padding; `CEK_TTL_MS` shortens the key lifetime to test refreshes.
+
+3. Point your app (or the [reference client](/guides/client/)) at `http://localhost:8787`, and send browsers to `http://localhost:8787/api/v1/auth/getQR?…`.
+
+4. Trigger a callback to your endpoint:
+
+   ```sh
+   curl -X POST http://localhost:8787/__mock/callback \
+     -d '{"url":"http://localhost:3000/iamsmart/sua-callback","content":{"businessID":"b1","state":"s1","isPassed":true}}'
+   ```
+
+</Steps>
+
+<Aside type="caution">
+  The mock reproduces documented behaviour only. Timeouts, rate limits, the real app and anything the spec doesn't describe will differ — always finish testing in the iAM Smart testing environment.
+</Aside>

@@ -1,0 +1,24 @@
+---
+title: Re-authentication
+description: Ask a logged-in user to confirm their identity again in the iAM Smart app before a sensitive action.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components'
+
+Scope: `eidapi_fr` · Spec §8
+
+Re-authentication asks **the same user** who logged in to confirm again in the iAM Smart app — for example before changing account details. You need a valid `accessToken`. For stronger checks with NFC or facial recognition, use [Step-up Authentication](/guides/step-up-authentication/).
+
+<Steps>
+
+1. Call [Request Re-authentication (appv1)](/api/operations/request-re-authentication/) with `businessID`, `accessToken`, `openID`, `source`, `redirectURI` and `state` — or [Request Re-authentication (appv2)](/api/operations/request-re-authentication-appv2/) from a same-device app.
+2. Different device (`authByQR: true`): ask the user to continue in the iAM Smart app. Same device: open `<scheme>://re-auth?ticketID=…` (appv1) or `<scheme>://v2_re-auth?ticketID=…` (appv2). The `ticketID` is valid for 18 minutes.
+3. Receive the [re-authentication result](/api/webhooks/re-authentication-result-callback/): `isPassed` is `true` when the same person confirmed. Treat the request as failed after 18 minutes.
+
+</Steps>
+
+<Aside type="note">
+  Re-authentication endpoints live under `/account/stepup/`, which is easy to confuse with Step-up Authentication (`/account/sua/`).
+</Aside>
+
+Errors: `D80001` user rejected, `D80002` failed, `D80003` timeout.

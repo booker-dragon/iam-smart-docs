@@ -1,0 +1,62 @@
+---
+// Interactive: searchable table of every return code in §2.4.3.
+import { returnCodeHints, returnCodes } from '../data/iam-smart.js'
+const hints: Record<string, string> = returnCodeHints
+---
+
+<ist-codes class="ist not-content">
+  <label>Search return codes
+    <input type="text" data-el="q" placeholder="e.g. D30002, signature, timeout" autocomplete="off" spellcheck="false" />
+  </label>
+  <p class="ist-status" data-el="count" role="status"></p>
+  <div class="ist-table-wrap">
+    <table>
+      <thead><tr><th>Code</th><th>Message</th><th>What to check</th></tr></thead>
+      <tbody>
+        {returnCodes.map((g) => (
+          <Fragment>
+            <tr data-group-row data-group={g.group}><td colspan="3">{g.group}</td></tr>
+            {g.codes.map(([code, message]) => (
+              <tr data-row data-group={g.group} data-text={`${code} ${message} ${hints[code] ?? ''} ${g.group}`.toLowerCase()}>
+                <td><code>{code}</code></td>
+                <td>{message}</td>
+                <td>{hints[code] ?? ''}</td>
+              </tr>
+            ))}
+          </Fragment>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</ist-codes>
+
+<script>
+  class IstCodes extends HTMLElement {
+    connectedCallback() {
+      const q = this.querySelector('[data-el=q]') as HTMLInputElement
+      const count = this.querySelector('[data-el=count]') as HTMLElement
+      const rows = [...this.querySelectorAll<HTMLTableRowElement>('tr[data-row]')]
+      const groups = [...this.querySelectorAll<HTMLTableRowElement>('tr[data-group-row]')]
+      const filter = () => {
+        const term = q.value.trim().toLowerCase()
+        let shown = 0
+        const visibleGroups = new Set<string>()
+        for (const r of rows) {
+          const hit = !term || (r.dataset.text ?? '').includes(term)
+          r.hidden = !hit
+          if (hit) {
+            shown++
+            visibleGroups.add(r.dataset.group!)
+          }
+        }
+        for (const g of groups) g.hidden = !visibleGroups.has(g.dataset.group!)
+        count.textContent = term ? `${shown} matching code${shown === 1 ? '' : 's'}` : `${rows.length} codes`
+      }
+      q.addEventListener('input', filter)
+      const fromHash = new URLSearchParams(location.search).get('code')
+      if (fromHash) q.value = fromHash
+      filter()
+    }
+  }
+  if (!customElements.get('ist-codes')) customElements.define('ist-codes', IstCodes)
+</script>

@@ -1,0 +1,38 @@
+---
+title: Profiles
+description: Retrieve identity and e-ME data right after login without an extra consent page — for Government and Related Organisations.
+---
+
+import { Aside } from '@astrojs/starlight/components'
+
+Scope: `eidapi_profiles` · Spec §4.1 · API: [Obtain Profiles Information](/api/operations/obtain-profiles/)
+
+The Profiles API returns a logged-in user's data **without an authorisation page** in the iAM Smart app, to support a “single portal for online government services”. It is for **Government and Related Organisations (GRO)** only; other organisations use [Form Filling (v2)](/guides/form-filling/), which asks the user to consent.
+
+Typical uses: account link-up, application and registration forms, remote account opening, identity verification and address verification.
+
+## Flow
+
+1. Log the user in ([Authentication](/guides/authentication/)) to get `accessToken` and `openID`.
+2. Call [Obtain Profiles Information](/api/operations/obtain-profiles/) with the fields you need:
+
+```json
+{
+  "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+  "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D",
+  "profileFields": ["idNo", "enName", "gender", "chName", "birthDate"],
+  "eMEFields": ["mobileNumber", "emailAddress", "addressDocInfo"]
+}
+```
+
+- `profileFields` are for **identity verification**; `eMEFields` are for **form filling**. At least one list must be non-empty, otherwise `D20002`.
+- You can only request the data fields approved for your client in the Self-Service Portal. Others return `D20003`.
+- The response arrives synchronously — no callback. Allow **10 seconds**, or **30 seconds** when requesting `addressDocFile` (the e-bill PDF).
+
+See [Profile fields](/reference/profile-fields/) for every field's format.
+
+<Aside type="note">
+  The older *Request Profile* API (`/api/v1/account/auth/profile/initiateRequest`) was shut down on 31 December 2025. See [Deprecations](/reference/deprecations/).
+</Aside>
+
+Follow the *Reference System Flow and User Interface Specifications for “iAM Smart” Adoption* for the required UI.

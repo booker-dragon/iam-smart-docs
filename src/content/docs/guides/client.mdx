@@ -1,0 +1,73 @@
+---
+title: Reference client
+description: Dependency-light Node.js and Python clients that handle the CEK, encryption, signing and callback decryption for every iAM Smart API.
+---
+
+import { Aside, Code, Tabs, TabItem } from '@astrojs/starlight/components'
+import nodeClient from '../../../../examples/node/iam-smart-client.mjs?raw'
+import pythonClient from '../../../../examples/python/iam_smart_client.py?raw'
+
+Every iAM Smart POST needs the same plumbing: fetch and cache the CEK, encrypt the body, sign the headers, decrypt the response. These clients do that so your code only deals with business fields. They live in [`examples/`](https://github.com/booker-dragon/iam-smart-docs/tree/main/examples) and are tested against the [mock server](/guides/mock-server/).
+
+```js
+const res = await iamSmart.post('/api/v1/auth/getToken', { code, grantType: 'authorization_code' })
+if (res.code !== 'D00000') throw new Error(`${res.code} ${res.message}`)
+const { accessToken, openID } = res.content // already decrypted
+```
+
+What they do for you:
+
+- **CEK** — requests it on first use, unwraps `secretKey` with your KEK private key, caches it until `issueAt + expiresIn` (minus a safety margin), and transparently refreshes and retries once on `D30001` / `D30002`.
+- **Encryption** — AES-256-GCM with a random 12-byte IV, in the spec's `int32 ivLength ‖ iv ‖ ciphertext ‖ tag` layout.
+- **Signing** — HMAC-SHA256 over `clientID + signatureMethod + timestamp + nonce + body`, URL-encoded; a strictly increasing timestamp and a fresh nonce every call; optional `rateLimitFactor`.
+- **Callbacks** — `decryptCallback(body)` unwraps the callback's `secretKey` and decrypts `content`.
+- **RSA padding** — the spec doesn't name it, so `auto` tries PKCS#1 v1.5, then OAEP-SHA1 and OAEP-SHA256, and remembers what worked. Set it explicitly once you know.
+
+<Tabs>
+<TabItem label="Node.js (≥ 20)">
+
+```js
+import fs from 'node:fs'
+import { IamSmartClient } from './iam-smart-client.mjs'
+
+const iamSmart = new IamSmartClient({
+  baseUrl: 'https://apigw-isit.staging-eid.gov.hk',
+  clientId: process.env.IAMSMART_CLIENT_ID,
+  clientSecret: process.env.IAMSMART_CLIENT_SECRET,
+  privateKeyPem: fs.readFileSync('kek-private.pem', 'utf8'),
+  // rsaPadding: 'pkcs1',
+})
+
+// Step-up and signing calls with suaMethod also need rateLimitFactor:
+await iamSmart.post('/api/v1/account/sua/initiateRequest', body, {
+  rateLimitFactor: { key: 'suaMethod', value: ['FR', 'NFC'] },
+})
+
+// In your callback handler:
+const callback = iamSmart.decryptCallback(req.body) // { txID, code, message, content }
+```
+
+<Code code={nodeClient} lang="js" title="examples/node/iam-smart-client.mjs" />
+
+</TabItem>
+<TabItem label="Python (≥ 3.9)">
+
+```python
+from iam_smart_client import IamSmartClient
+
+client = IamSmartClient(
+    "https://apigw-isit.staging-eid.gov.hk",
+    client_id, client_secret, open("kek-private.pem").read(),
+)
+res = client.post("/api/v1/profiles", {"accessToken": token, "openID": open_id, "profileFields": ["idNo"]})
+callback = client.decrypt_callback(request_body)
+```
+
+<Code code={pythonClient} lang="python" title="examples/python/iam_smart_client.py" />
+
+</TabItem>
+</Tabs>
+
+<Aside type="caution">
+  Keep the client secret and KEK private key in a secret store, never in your app or front-end. Mobile apps should call your server, which calls iAM Smart.
+</Aside>

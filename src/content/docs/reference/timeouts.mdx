@@ -1,0 +1,47 @@
+---
+title: Timeouts & lifetimes
+description: Every expiry, waiting time and size limit in the iAM Smart API specification, in one place.
+---
+
+Collected from across the v2.5.2 specification.
+
+## Credentials and identifiers
+
+| Item | Lifetime | Notes |
+| --- | --- | --- |
+| CEK | `expiresIn` from *Request CEK* (example: 86 400 000 ms = 24 h) | Can change; compute `issueAt + expiresIn`. |
+| Authorisation code — login | 60 seconds, single use | §3.4.3, §3.4.4 |
+| Authorisation code — anonymous workflows | 1 minute, single use | §5.5.4–5.5.6 |
+| Authorisation code — Direct Login v2 (web and app) | 30 seconds, single use | §3.4.6, §3.4.9 |
+| `accessToken` — login | `expiresIn` (example: 14 400 000 ms = 4 h; varies by service) | Reusable until expiry. |
+| `accessToken` — anonymous workflows | Single use | Used once to fetch the result. |
+| `ticketID` — signing, re-authentication, step-up, CDEG consent | 18 minutes | |
+| `ticketID` — anonymous workflows | 12 minutes | |
+| BSQC token | 1 day | Enquire or cancel bulk signing. |
+
+## How long to wait for a result
+
+| Waiting for | Treat as failed after |
+| --- | --- |
+| authCode callback (login) | 18 minutes |
+| authCode callback (anonymous) | 12 minutes |
+| Form filling, signing, re-authentication, step-up and CDEG consent callbacks | 18 minutes |
+| BSQC token callback | 18 minutes |
+| Bulk signing result callback | 1 day |
+| Profiles API response | 10 seconds (30 seconds with `addressDocFile`) |
+
+## Limits
+
+| Limit | Value |
+| --- | --- |
+| Request size | 10 MB (HTTP 413 above) |
+| Uploaded files | 5 MB (HTTP 413 above) |
+| Bulk signing documents | 1 – 1000 per request |
+| `maxCallbackSigs` default | 1000 |
+| `suaWaitPeriod` | 0 – 720 hours |
+| `businessID`, `state`, `nonce`, `ticketID`, document `id` | ≤ 36 ASCII characters |
+| `openID` | ≤ 64 characters |
+| `BSQCToken` | ≤ 32 characters |
+| `serviceName`, `documentName`, `requestName`, `formName`, `formDesc` | ≤ 255 characters |
+| `department` | ≤ 100 characters |
+| `formNum`, `suaMessage`, `identifierCode` | ≤ 20, 10, 10 characters |

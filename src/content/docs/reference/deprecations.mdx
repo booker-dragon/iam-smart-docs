@@ -1,0 +1,19 @@
+---
+title: Deprecations
+description: iAM Smart APIs that have been shut down and what replaces them.
+---
+
+import { Aside } from '@astrojs/starlight/components'
+
+These APIs reached their shutdown date on **31 December 2025**; requests to them no longer work. Migrating requires updating your testing and production application forms. They remain in the [API reference](/api/operations/tags/deprecated-apis/) for teams auditing older code.
+
+| API | Endpoint | Deprecated | Replacement |
+| --- | --- | --- | --- |
+| Request Profile (v1) | `/api/v1/account/auth/profile/initiateRequest` + app link `profile` + profile callback | 1 Jan 2024 | [Obtain Profiles Information](/api/operations/obtain-profiles/) (`/api/v1/profiles`) |
+| Request Form Filling (v1) | `/api/v1/account/eme/initiateRequest` + app link `eme` · scope `eidapi_eMe` | 1 Oct 2022 | [Request Form Filling (v2)](/api/operations/request-form-filling/) |
+| Request Anonymous Form Filling (v1) | `/api/v1/anonymous/eme/initiateRequest` | 1 Oct 2022 | [Request Anonymous Form Filling](/api/operations/request-anonymous-form-filling/) (`/api/v2/…`) |
+| Obtain Anonymous Form Filling Result (v1) | `/api/v1/anonymous/eme/getResult` | 1 Oct 2022 | [Obtain Anonymous Form Filling Result](/api/operations/obtain-anonymous-form-filling-result/) (`/api/v2/…`) |
+
+<Aside>
+  Profile v1 sent data to a callback after consent; the Profiles API returns it synchronously without a consent page (GRO only). Non-GRO services should move to Form Filling (v2), which keeps the consent page.
+</Aside>

@@ -1,0 +1,77 @@
+---
+title: App deep links
+description: Every URL that opens the iAM Smart app, the parameters each takes, and how the app returns to your app (appv1 vs appv2).
+---
+
+import { Aside } from '@astrojs/starlight/components'
+import DeepLinkBuilder from '../../../components/DeepLinkBuilder.astro'
+import { deepLinks } from '../../../data/iam-smart.js'
+
+On the same device, you hand the user to the iAM Smart app with `<scheme>://<action>?…`:
+
+- Testing: `hk.gov.iamsmart.testapp://`
+- Production: `hk.gov.iamsmart://`
+
+<DeepLinkBuilder />
+
+## All actions
+
+<table>
+  <thead><tr><th>Action</th><th>Feature</th><th>Version</th><th>Parameters</th><th>Spec</th></tr></thead>
+  <tbody>
+    {deepLinks.map((d) => (
+      <tr>
+        <td><code>{d.action}</code></td>
+        <td>{d.feature}</td>
+        <td>{d.version}</td>
+        <td>{d.params.map((p, i) => <><code>{p}</code>{i < d.params.length - 1 ? ' ' : ''}</>)}</td>
+        <td>§{d.section}</td>
+      </tr>
+    ))}
+  </tbody>
+</table>
+
+For logged-in flows, the `ticketID` comes from the *initiate request* API (`authByQR: false`) and is valid for 18 minutes. For anonymous flows it comes from the anonymous *initiate request* and is valid for 12 minutes.
+
+## appv1 vs appv2
+
+| | appv1 | appv2 |
+| --- | --- | --- |
+| How iAM Smart returns to your Android app | App Link (needs Google Mobile Services) | Package name + activity class via an intent — works without GMS |
+| How it returns to your iOS app | Universal Link | Universal Link (`clientRedirectURI`) |
+| `source` | `App_Link` (`App_Scheme` only if approved) | `App_Link` (iOS) / `App_Package` (Android) |
+| Several apps per client ID | Not allowed | No such restriction stated |
+| Recommendation | Existing integrations may keep it | Recommended for new integrations |
+
+`clientRedirectURI` must be URL-encoded and registered in the Self-Service Portal; encoded or unencoded commas are not accepted.
+
+## Returning to your app
+
+After the user acts in iAM Smart, your app is opened with the result parameters:
+
+```txt
+// Universal Link / App Link (appv1, and iOS appv2)
+<Universal Link>://<landing location>?code=0ad186353c424c64897fcc00445c9ba1&state=eddd527b6
+<Universal Link>://<landing location>?error_code=D20001&state=eddd527b6
+```
+
+```java
+// Android appv2: intent extras
+Intent ii = new Intent(<package name>, <activity class name>);
+ii.putExtra("code", "0ad186353c424c64897fcc00445c9ba1");
+ii.putExtra("state", "eddd527b6");
+ii.putExtra("businessID", "b2c99aa83b0049e9ba370c5341681225"); // anonymous flows only
+startActivity(ii);
+```
+
+| Parameter | When |
+| --- | --- |
+| `code` | Success. Single use; expires after 60 s (login) or 1 min (anonymous). Send it to your server and exchange it there. |
+| `state` | Echo of your `state`. Verify it. |
+| `businessID` | Anonymous workflows only. |
+| `error_code` | Instead of `code` on failure. |
+| `code_verifier` | Direct Login v2 (App) only — PKCE verifier to send with the code. |
+
+<Aside type="caution">
+  Register the Universal Link / App Link landing location, the Android package name, activity class and SHA-256 app fingerprint in the Self-Service Portal — the support team must enable them. Give up on a pending request after 18 minutes (12 for anonymous flows).
+</Aside>

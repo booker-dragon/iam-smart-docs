@@ -1,0 +1,54 @@
+---
+title: Bulk Digital Signing
+description: Have an iAM Smart+ user sign up to 1000 hashes or PDF digests in one consent, then track, receive and acknowledge the results.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components'
+
+Scope: `eidapi_bulksign` · Spec §9
+
+Bulk signing lets a logged-in iAM Smart+ user sign many documents in **one** signing cycle — 1 to 1000 items, each a hash (`hashCode`, optional `sigAlgo`) or a PDF digest (`docDigest`).
+
+## Flow
+
+<Steps>
+
+1. **Submit** [Request Bulk Digital Signing](/api/operations/request-bulk-digital-signing/) (or the [appv2 variant](/api/operations/request-bulk-digital-signing-appv2/)) with `serviceName`, `requestName`, the `documents` and two endpoints:
+   - `redirectURI` (`serverRedirectURI` for appv2) — receives the **BSQC token**;
+   - `callbackResultURI` — receives the **signatures**.
+
+   Large batches can be sent as `multipart/form-data` with parts `reqFile` (`{"documents": […]}`) and `reqMetadata` (everything else), both encrypted with the CEK.
+
+2. **Hand over** — different device: ask the user to continue in the app. Same device: open `<scheme>://bulk-sign?ticketID=…` or `v2_bulk-sign`.
+
+3. **Receive the BSQC token** on the [BSQC token callback](/api/webhooks/bsqc-token-callback/), within 18 minutes. It is valid for **1 day** and lets you enquire or cancel.
+
+4. **Receive the signatures** on the [bulk signing result callback](/api/webhooks/bulk-signing-result-callback/) — `multipart/form-data` with `sigFile` and `sigMetada`, within **1 day**.
+
+5. **Acknowledge** with [Acknowledge Bulk Digital Signing Result](/api/operations/acknowledge-bulk-signing-result/), whether signing succeeded or failed — for all documents at once, or per document via `signatures`.
+
+</Steps>
+
+## Split result callbacks
+
+`maxCallbackSigs` (default 1000) caps how many signatures your endpoint receives per callback. With *n* documents and limit *m*:
+
+```txt
+totalCallbacks = int((n - 1) / m + 1)
+callbacks 1 … totalCallbacks-1 carry m signatures, the last carries n - (totalCallbacks - 1) × m
+```
+
+For example 250 documents with `maxCallbackSigs: 100` arrive in 3 callbacks of 100, 100 and 50. Use `callbackSeq` to know when you have them all; `totalSignNum` and `failSignNum` summarise the outcome.
+
+## Track or cancel
+
+| API | Notes |
+| --- | --- |
+| [Enquire Bulk Digital Signing Status](/api/operations/enquire-bulk-signing-status/) | `SS001` Pending for Signing · `SS002` In Progress · `SS003` Completed · `SS004` Cancelled · `SS005` Failed · `SS006` No Record Found |
+| [Cancel Bulk Digital Signing Request](/api/operations/cancel-bulk-signing-request/) | Only while `SS001`; otherwise `D71007`. |
+
+Both take the `BSQCToken` and `openID`.
+
+<Aside type="caution">
+  `D71009` (inconsistent department or service name) and `D71005` (inconsistent HKIC number) are bulk-specific errors. The spec's table for *Cancel* repeats the *ackResult* URI; the example uses `/api/v1/bdss/cancelRequest`, which this site follows.
+</Aside>

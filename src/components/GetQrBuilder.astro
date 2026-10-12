@@ -1,0 +1,105 @@
+---
+// Interactive: build a GET /api/v1/auth/getQR URL.
+import { environments, scopes, sources } from '../data/iam-smart.js'
+
+const browserSources = [...new Map(sources.filter((s) => !s.value.startsWith('App_')).map((s) => [s.value, s])).values()]
+interface Props {
+  showTitle?: boolean
+}
+const { showTitle = true } = Astro.props
+---
+
+<ist-getqr class="ist not-content">
+  {showTitle && <h3 class="ist-title" id="getqr-url-builder">getQR URL builder</h3>}
+  <p class="ist-note">
+    Builds the browser redirect for <a href="/api/operations/get-qr-page/">Request QR Page</a>. Values are URL-encoded for you; the redirect URI must be
+    registered in the Self-Service Portal.
+  </p>
+  <div class="ist-grid">
+    <label>Environment
+      <select name="env" data-el="env">
+        {Object.values(environments).map((e) => <option value={`https://${e.domain}`}>{e.label} — {e.domain}</option>)}
+      </select>
+    </label>
+    <label>clientID <input type="text" name="clientId" data-el="clientId" autocomplete="off" spellcheck="false" /></label>
+  </div>
+  <div class="ist-grid">
+    <label>source
+      <select name="source" data-el="source">
+        {browserSources.map((s) => <option value={s.value}>{s.value} — {s.client}</option>)}
+      </select>
+    </label>
+    <label>redirectURI <input type="text" name="redirectURI" data-el="redirectURI" placeholder="https://your.service/iamsmart/callback" spellcheck="false" /></label>
+  </div>
+  <fieldset>
+    <legend>scope</legend>
+    <div class="ist-checks">
+      {scopes.map((s) => <label class="ist-inline" title={s.api}><input type="checkbox" data-scope={s.value} checked={s.value === 'eidapi_auth'} /> <code>{s.value}</code></label>)}
+    </div>
+  </fieldset>
+  <div class="ist-grid">
+    <label>lang
+      <select name="lang" data-el="lang">
+        <option value="">(default zh-HK)</option><option value="en-US">en-US</option><option value="zh-HK">zh-HK</option><option value="zh-CN">zh-CN</option>
+      </select>
+    </label>
+    <label>state <small>anti-CSRF, ≤ 36 chars</small><input type="text" data-el="state" spellcheck="false" /></label>
+    <label>ticketID <small>anonymous workflows only</small><input type="text" data-el="ticketID" spellcheck="false" /></label>
+  </div>
+  <label class="ist-inline"><input type="checkbox" name="brokerPage" data-el="brokerPage" /> brokerPage — open the app via Universal Link / App Link, falling back to QR</label>
+  <div class="ist-actions">
+    <button type="button" class="ist-secondary" data-el="detect">Use my browser's source</button>
+    <button type="button" class="ist-secondary" data-el="newState">New random state</button>
+  </div>
+  <p class="ist-status" data-el="status" role="status"></p>
+  <div class="ist-output">
+    <pre data-el="url"></pre>
+    <button type="button" class="ist-copy" data-copy-target="[data-el=url]">Copy</button>
+  </div>
+</ist-getqr>
+
+<script>
+  import { randomState } from '../lib/iam-smart-crypto.js'
+  import { detectSource, persist, setStatus, wireCopyButtons } from '../lib/ui.js'
+
+  class IstGetQr extends HTMLElement {
+    connectedCallback() {
+      const el = (name: string) => this.querySelector(`[data-el=${name}]`) as any
+      persist('ist-getqr', [el('env'), el('clientId'), el('source'), el('redirectURI'), el('lang'), el('brokerPage')])
+      wireCopyButtons(this)
+      el('state').value = randomState()
+
+      const render = () => {
+        const p = new URLSearchParams()
+        p.set('clientID', el('clientId').value.trim() || '<clientID>')
+        p.set('responseType', 'code')
+        p.set('source', el('source').value)
+        p.set('redirectURI', el('redirectURI').value.trim() || 'https://your.service/iamsmart/callback')
+        const scope = [...this.querySelectorAll<HTMLInputElement>('[data-scope]')].filter((c) => c.checked).map((c) => c.dataset.scope).join(' ')
+        p.set('scope', scope)
+        if (el('ticketID').value.trim()) p.set('ticketID', el('ticketID').value.trim())
+        if (el('lang').value) p.set('lang', el('lang').value)
+        if (el('state').value.trim()) p.set('state', el('state').value.trim())
+        if (el('brokerPage').checked) p.set('brokerPage', 'true')
+        // The spec's examples encode spaces as %20, not "+".
+        el('url').textContent = `${el('env').value}/api/v1/auth/getQR?${p.toString().replace(/\+/g, '%20')}`
+        const problems = []
+        if (!scope) problems.push('select at least one scope')
+        if (!/^[A-Za-z0-9_-]{0,36}$/.test(el('state').value.trim())) problems.push('state may only contain letters, numbers, _ and - (max 36)')
+        setStatus(el('status'), problems.length ? `Check: ${problems.join('; ')}.` : '', problems.length ? 'error' : 'info')
+      }
+      this.addEventListener('input', render)
+      this.addEventListener('change', render)
+      el('detect').addEventListener('click', () => {
+        el('source').value = detectSource()
+        el('source').dispatchEvent(new Event('change', { bubbles: true }))
+      })
+      el('newState').addEventListener('click', () => {
+        el('state').value = randomState()
+        render()
+      })
+      render()
+    }
+  }
+  if (!customElements.get('ist-getqr')) customElements.define('ist-getqr', IstGetQr)
+</script>

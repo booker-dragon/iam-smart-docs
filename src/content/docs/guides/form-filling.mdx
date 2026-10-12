@@ -1,0 +1,45 @@
+---
+title: Form Filling
+description: Ask a logged-in user to share profile and e-ME data with consent, on the same or a different device, with JSON or multipart callbacks.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components'
+
+Scope: `eidapi_formFilling` · Spec §4.2
+
+Form Filling (v2) asks a logged-in user to approve sharing data on an authorisation page in the iAM Smart app. It is the consent-based counterpart of [Profiles](/guides/profiles/) and the option for non-GRO organisations. The same `profileFields` / `eMEFields` lists apply; a field listed in both is shown as a profile field.
+
+## Different device
+
+<Steps>
+
+1. Call [Request Form Filling (v2)](/api/operations/request-form-filling/) with `accessToken`, `openID`, `source`, `redirectURI`, a unique `businessID` and the fields. The response has `authByQR: true`.
+2. The user approves in the iAM Smart app.
+3. iAM Smart posts the data to your [form filling callback](/api/webhooks/form-filling-callback/).
+
+</Steps>
+
+## Same device
+
+<Steps>
+
+1. Call *Request Form Filling (v2)* — the response has `authByQR: false` and a `ticketID`.
+2. Open the iAM Smart app with `<scheme>://form-filling?ticketID=…`.
+3. Receive the callback.
+
+</Steps>
+
+For an **online service app** on the same device you can use [Request Form Filling (appv2)](/api/operations/request-form-filling-appv2/) with `source` `App_Link` / `App_Package`, `clientRedirectURI` (iOS) or `packageName` + `activityClass` (Android), and `serverRedirectURI` for the data callback; open the app with `v2_form-filling`.
+
+## Callback format
+
+| `callbackContentType` | What you receive |
+| --- | --- |
+| `application/json` (default) | One encrypted JSON body; `addressDocFile.docFile` contains the e-bill as Base64. [Details](/api/webhooks/form-filling-callback/) |
+| `multipart/form-data` | Part `docFile` with the encrypted PDF binary and part `profile` with the encrypted JSON. Choose this if your endpoint limits request size. [Details](/api/webhooks/form-filling-callback-multipart/) |
+
+<Aside type="tip">
+  Optional `formName` (≤ 255), `formNum` (≤ 20) and `formDesc` (≤ 255) identify the form, in Unicode. Your form may let users edit values pre-filled from e-ME fields.
+</Aside>
+
+Form Filling v1 (`/api/v1/account/eme/initiateRequest`, scope `eidapi_eMe`) was shut down on 31 December 2025.
