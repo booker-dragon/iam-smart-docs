@@ -204,7 +204,7 @@ const summaryText = {
             <textarea data-el="cbContent" rows="8" spellcheck="false">{item.example ? JSON.stringify(item.example, null, 2) : '{}'}</textarea>
           </label>
           <div class="ist-actions"><button type="button" data-el="sendCallback">Send test callback</button></div>
-          <p class="ist-status" data-el="status" role="status"></p>
+          <p class="ist-status" data-el="cbStatus" role="status"></p>
         </details>
       </Fragment>
     )}
@@ -517,7 +517,7 @@ const summaryText = {
     // ---- encrypted callbacks (POST) ------------------------------------------------------
     setupCallbackJson() {
       this.el('sendCallback').addEventListener('click', async () => {
-        const status = this.el('status')
+        const status = this.el('cbStatus')
         try {
           const target = this.el('targetUrl').value.trim()
           if (!target) throw new Error('Enter your callback URL')

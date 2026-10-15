@@ -32,6 +32,13 @@ jobs:
           SITE_URL: https://${{ github.repository_owner }}.github.io
           SITE_BASE: /${{ github.event.repository.name }}/
         run: npm run build
+      - name: Browser test of the Try it consoles
+        env:
+          SITE_BASE: /${{ github.event.repository.name }}/
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.63.0
+          npx playwright install --with-deps chromium
+          node tests/e2e/consoles.e2e.mjs
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
