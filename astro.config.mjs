@@ -80,7 +80,10 @@ export default defineConfig({
         { label: 'Developer tools', slug: 'tools', badge: { text: 'Interactive', variant: 'tip' } },
         {
           label: 'Playgrounds',
-          items: [{ label: 'Anonymous step-up', slug: 'playground/anonymous-step-up', badge: { text: 'New', variant: 'success' } }],
+          items: [
+            { label: 'Anonymous step-up', slug: 'playground/anonymous-step-up' },
+            { label: 'Anonymous form filling', slug: 'playground/anonymous-form-filling', badge: { text: 'New', variant: 'success' } },
+          ],
         },
         {
           label: 'Reference',

@@ -1,14 +1,35 @@
 ---
-// Guided playground for Anonymous Step-up Authentication (spec §12):
-//   1. request signing check + automatic CEK  →  2. initiateRequest  →  3. getQR  →  4. result
+// Guided playground for the anonymous (no service login) workflows:
+//   flow="sua" — Anonymous Step-up Authentication (spec §12)
+//   flow="ff"  — Anonymous Form Filling (spec §5)
+// Steps: 1. request signing check + automatic CEK → 2. initiateRequest → 3. getQR → 4. result.
 // Content encryption is fully automatic: the CEK is fetched, unwrapped, cached and refreshed for you.
 import { ENVIRONMENTS } from '../lib/console-state.js'
 import { sources } from '../data/iam-smart.js'
 
+interface Props {
+  flow: 'sua' | 'ff'
+}
+const { flow } = Astro.props
+const FLOWS = {
+  sua: { initPath: '/api/v1/anonymous/sua/initiateRequest', resultPath: '/api/v1/anonymous/sua/getResult', scope: 'eidapi_sua', title: 'Anonymous SUA initiateRequest' },
+  ff: { initPath: '/api/v2/anonymous/formFilling/initiateRequest', resultPath: '/api/v2/anonymous/formFilling/getResult', scope: 'eidapi_formFilling', title: 'Anonymous Form Filling initiateRequest' },
+}
+const cfg = FLOWS[flow]
+const PROFILE_FIELDS = [['idNo', 'HKIC number'], ['enName', 'English name'], ['chName', 'Chinese name'], ['birthDate', 'Date of birth'], ['gender', 'Gender']]
+const EME_FIELDS = [
+  ['prefix', 'Prefix'], ['idNo', 'HKIC number'], ['enName', 'English name'], ['chName', 'Chinese name'], ['birthDate', 'Date of birth'], ['gender', 'Gender'],
+  ['maritalStatus', 'Marital status'], ['homeTelNumber', 'Home phone'], ['officeTelNumber', 'Office phone'], ['mobileNumber', 'Mobile'], ['emailAddress', 'Email'],
+  ['residentialAddress', 'Residential address'], ['postalAddress', 'Postal address'], ['educationLevel', 'Education level'],
+  ['addressDocInfo', 'e-bill details'], ['addressDocFile', 'e-bill PDF'],
+]
+const DEFAULT_PROFILE = ['idNo', 'enName']
+const DEFAULT_EME = ['mobileNumber', 'emailAddress']
+
 const browserSources = [...new Map(sources.filter((s) => !s.value.startsWith('App_')).map((s) => [s.value, s])).values()]
 ---
 
-<sua-playground class="sua not-content">
+<flow-playground class="sua not-content" data-flow={flow} data-init-path={cfg.initPath} data-result-path={cfg.resultPath} data-scope={cfg.scope}>
   <!-- ============ Settings ============ -->
   <section class="ist sua-step">
     <header><span class="sua-num">0</span><h3>Your test credentials</h3></header>
@@ -76,8 +97,35 @@ const browserSources = [...new Map(sources.filter((s) => !s.value.startsWith('Ap
 
   <!-- ============ 2. initiateRequest ============ -->
   <section class="ist sua-step" data-step="init">
-    <header><span class="sua-num">2</span><h3>Anonymous SUA initiateRequest</h3></header>
-    <p class="ist-note"><code>POST /api/v1/anonymous/sua/initiateRequest</code> — fill in the business fields; the body is encrypted and the <code>rateLimitFactor</code> header added for you.</p>
+    <header><span class="sua-num">2</span><h3>{cfg.title}</h3></header>
+    <p class="ist-note">
+      <code>POST {cfg.initPath}</code> — fill in the business fields; the body is encrypted for you{flow === 'sua' && <Fragment> and the <code>rateLimitFactor</code> header added</Fragment>}.
+    </p>
+    {flow === 'ff' && (
+      <Fragment>
+        <fieldset>
+          <legend>profileFields — identity verification</legend>
+          <div class="ist-checks">
+            {PROFILE_FIELDS.map(([v, l]) => <label class="ist-inline"><input type="checkbox" name="ff-profile" value={v} checked={DEFAULT_PROFILE.includes(v)} /> <code>{v}</code> {l}</label>)}
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>eMEFields — form filling</legend>
+          <div class="ist-checks">
+            {EME_FIELDS.map(([v, l]) => <label class="ist-inline"><input type="checkbox" name="ff-eme" value={v} checked={DEFAULT_EME.includes(v)} /> <code>{v}</code> {l}</label>)}
+          </div>
+        </fieldset>
+        <p class="ist-note">At least one field is required (<code>D20002</code> otherwise). Request only fields approved for your client in the Self-Service Portal; a field in both lists is shown to the user as a profile field.</p>
+        <div class="ist-grid">
+          <label>formName <small>≤ 255</small><input type="text" data-el="formName" maxlength="255" value="Playground test form" /></label>
+          <label>formNum <small>≤ 20</small><input type="text" data-el="formNum" maxlength="20" value="PG-0001" /></label>
+          <label>formDesc <small>≤ 255</small><input type="text" data-el="formDesc" maxlength="255" value="Testing anonymous form filling" /></label>
+          <label>businessID <input type="text" data-el="businessID" maxlength="36" spellcheck="false" /></label>
+        </div>
+      </Fragment>
+    )}
+    {flow === 'sua' && (
+    <Fragment>
     <div class="ist-grid">
       <label>HKIC number of the person <small>hashed here; only the hash is sent</small>
         <input type="text" data-el="hkic" placeholder="A123456(7)" autocomplete="off" spellcheck="false" />
@@ -98,6 +146,8 @@ const browserSources = [...new Map(sources.filter((s) => !s.value.startsWith('Ap
       <label>suaWaitPeriod <small>optional, hours 0–720</small><input type="number" data-el="suaWaitPeriod" min="0" max="720" /></label>
       <label>businessID <input type="text" data-el="businessID" maxlength="36" spellcheck="false" /></label>
     </div>
+    </Fragment>
+    )}
     <div class="ist-actions">
       <button type="button" data-el="initGo">Send initiateRequest</button>
       <button type="button" class="ist-secondary" data-el="initNew">New businessID</button>
@@ -118,7 +168,7 @@ const browserSources = [...new Map(sources.filter((s) => !s.value.startsWith('Ap
   <section class="ist sua-step" data-step="qr">
     <header><span class="sua-num">3</span><h3>getQR</h3></header>
     <p class="ist-note">
-      Open this URL in the user's browser. iAM Smart shows a QR code (or opens the app on a phone); after the check, the browser goes to
+      Open this URL in the user's browser. iAM Smart shows a QR code (or opens the app on a phone); after the user approves, the browser goes to
       <code>redirectURI</code> with <code>code</code> and <code>state</code>. Leave the redirect URI as this page to finish in step 4 — on the real
       testing gateway it must be whitelisted in the Self-Service Portal.
     </p>
@@ -144,7 +194,7 @@ const browserSources = [...new Map(sources.filter((s) => !s.value.startsWith('Ap
     <header><span class="sua-num">4</span><h3>Result</h3></header>
     <p class="ist-note">
       Back from iAM Smart with <code>?code=…</code>, this page exchanges the code (single use, 1 minute) with <code>getToken</code> and calls
-      <code>/api/v1/anonymous/sua/getResult</code>. Or paste the URL your own callback received.
+      <code>{cfg.resultPath}</code>. Or paste the URL your own callback received.
     </p>
     <label>Callback URL <textarea data-el="cbUrl" rows="2" spellcheck="false" placeholder="https://…?code=…&amp;state=…"></textarea></label>
     <div class="ist-actions"><button type="button" data-el="resultGo">Get result</button></div>
@@ -152,7 +202,11 @@ const browserSources = [...new Map(sources.filter((s) => !s.value.startsWith('Ap
     <div class="sua-manual ist-hidden" data-el="manual"></div>
     <div data-el="resultOut" class="ist-hidden">
       <p class="sua-verdict" data-el="verdict"></p>
-      <div class="ist-output"><pre data-el="response"></pre></div>
+      {flow === 'ff' && <div class="ist-table-wrap"><table class="sua-data"><tbody data-el="dataRows"></tbody></table></div>}
+      <details open={flow === 'sua'}>
+        <summary>Raw responses</summary>
+        <div class="ist-output"><pre data-el="response"></pre></div>
+      </details>
     </div>
   </section>
 
@@ -162,14 +216,13 @@ const browserSources = [...new Map(sources.filter((s) => !s.value.startsWith('Ap
       <span class="ist-note" data-el="cekFoot"></span>
     </div>
   </section>
-</sua-playground>
+</flow-playground>
 
 <script>
   import { buildRequest, decryptContent, hkicHash, randomState, signRequest, unwrapCek } from '../lib/iam-smart-crypto.js'
   import { baseUrl, canSend, cekValid, parseCallbackUrl, state } from '../lib/console-state.js'
   import { detectSource, setStatus, show, wireCopyButtons } from '../lib/ui.js'
 
-  const PG = 'ist-sua-playground'
   const CEK_ERRORS = new Set(['D30001', 'D30002'])
   const HINTS: Record<string, string> = {
     D20006: 'Signature rejected — check the client secret and that clientID matches it.',
@@ -195,7 +248,10 @@ const browserSources = [...new Map(sources.filter((s) => !s.value.startsWith('Ap
   const pretty = (v: unknown) => JSON.stringify(v, null, 2)
   const hex = (n: number) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => b.toString(16).padStart(2, '0')).join('')
 
-  class SuaPlaygroundEl extends HTMLElement {
+  class FlowPlaygroundEl extends HTMLElement {
+    get flow() {
+      return this.dataset.flow ?? 'sua'
+    }
     $(name: string, scope: ParentNode = this): any {
       return scope.querySelector(`[data-el=${name}]`)
     }
@@ -203,10 +259,10 @@ const browserSources = [...new Map(sources.filter((s) => !s.value.startsWith('Ap
       return this.querySelector(`[data-step=${id}]`)!
     }
     pg() {
-      return read(PG)
+      return read(`ist-${this.flow}-playground`)
     }
     savePg(patch: Record<string, unknown>) {
-      write(PG, { ...this.pg(), ...patch })
+      write(`ist-${this.flow}-playground`, { ...this.pg(), ...patch })
     }
 
     connectedCallback() {
@@ -239,10 +295,15 @@ const browserSources = [...new Map(sources.filter((s) => !s.value.startsWith('Ap
 
       // Step 2
       const init = this.step('init')
-      this.$('identifierCode', init).value = pg.identifierCode ?? String(1000 + Math.floor(Math.random() * 9000))
       this.$('businessID', init).value = pg.businessID ?? hex(16)
-      if (pg.method) (this.querySelector(`input[name=sua-method][value="${pg.method}"]`) as HTMLInputElement | null)?.click()
-      this.$('hkic', init).addEventListener('input', () => this.updateHash())
+      if (this.flow === 'sua') {
+        this.$('identifierCode', init).value = pg.identifierCode ?? String(1000 + Math.floor(Math.random() * 9000))
+        if (pg.method) (this.querySelector(`input[name=sua-method][value="${pg.method}"]`) as HTMLInputElement | null)?.click()
+        this.$('hkic', init).addEventListener('input', () => this.updateHash())
+      } else if (Array.isArray(pg.profileFields) || Array.isArray(pg.eMEFields)) {
+        this.querySelectorAll<HTMLInputElement>('input[name=ff-profile]').forEach((c) => (c.checked = pg.profileFields?.includes(c.value) ?? false))
+        this.querySelectorAll<HTMLInputElement>('input[name=ff-eme]').forEach((c) => (c.checked = pg.eMEFields?.includes(c.value) ?? false))
+      }
       this.$('initNew', init).addEventListener('click', () => (this.$('businessID', init).value = hex(16)))
       this.$('initGo', init).addEventListener('click', () => this.run('init', () => this.initiate()))
       if (pg.initResponse) this.showInit(pg.initRequestPlain, pg.initWire, pg.initResponse)
@@ -267,7 +328,7 @@ const browserSources = [...new Map(sources.filter((s) => !s.value.startsWith('Ap
       }
 
       this.$('reset').addEventListener('click', () => {
-        write(PG, { mode: this.pg().mode })
+        write(`ist-${this.flow}-playground`, { mode: this.pg().mode })
         state.saveSession({ ticketID: '', expectedState: '' })
         location.href = location.origin + location.pathname
       })
@@ -453,6 +514,41 @@ const browserSources = [...new Map(sources.filter((s) => !s.value.startsWith('Ap
     }
 
     async initiate() {
+      return this.flow === 'ff' ? this.initiateFormFilling() : this.initiateSua()
+    }
+
+    async initiateFormFilling() {
+      const init = this.step('init')
+      const checked = (name: string) => [...this.querySelectorAll<HTMLInputElement>(`input[name=${name}]:checked`)].map((c) => c.value)
+      const profileFields = checked('ff-profile')
+      const eMEFields = checked('ff-eme')
+      if (!profileFields.length && !eMEFields.length) throw new Error('Select at least one profile or e-ME field')
+      const body: Record<string, unknown> = { businessID: this.$('businessID', init).value.trim() || hex(16) }
+      for (const k of ['formName', 'formNum', 'formDesc']) {
+        const v = this.$(k, init).value.trim()
+        if (v) body[k] = v
+      }
+      if (profileFields.length) body.profileFields = profileFields
+      if (eMEFields.length) body.eMEFields = eMEFields
+      await this.sendInitiate(body, undefined, { profileFields, eMEFields })
+    }
+
+    async sendInitiate(body: Record<string, unknown>, rlf: unknown, extra: Record<string, unknown>) {
+      const init = this.step('init')
+      const path = this.dataset.initPath!
+      const { res, req } = await this.call('init', 'initiateRequest', path, body, rlf)
+      const wire = [`POST …${path}`, ...Object.entries(req.headers).map(([k, v]) => `${k}: ${v}`), '', req.body].join('\n')
+      this.savePg({ initRequestPlain: body, initWire: wire, initResponse: res, businessID: body.businessID, ...extra })
+      this.showInit(body, wire, res)
+      if (res.code !== 'D00000') throw new Error(`${res.code} ${res.message}${HINTS[res.code] ? ` — ${HINTS[res.code]}` : ''}`)
+      this.savePg({ ticketID: res.content.ticketID, ticketAt: Date.now() })
+      state.saveSession({ ticketID: res.content.ticketID })
+      this.$('ticketID', this.step('qr')).value = res.content.ticketID
+      this.renderQr()
+      setStatus(this.$('status', init), `ticketID received — valid for 12 minutes. Continue with step 3.`, 'ok')
+    }
+
+    async initiateSua() {
       const init = this.step('init')
       await this.updateHash()
       const HKICHash = this.$('hkicHash', init).value
@@ -471,17 +567,7 @@ const browserSources = [...new Map(sources.filter((s) => !s.value.startsWith('Ap
       const idc = this.$('identifierCode', init).value.trim()
       if (idc) body.identifierCode = idc
       const rlf = { key: 'suaMethod', value: methods }
-
-      const { res, req } = await this.call('init', 'initiateRequest', '/api/v1/anonymous/sua/initiateRequest', body, rlf)
-      const wire = [`POST …/api/v1/anonymous/sua/initiateRequest`, ...Object.entries(req.headers).map(([k, v]) => `${k}: ${v}`), '', req.body].join('\n')
-      this.savePg({ initRequestPlain: body, initWire: wire, initResponse: res, method: methodValue, identifierCode: idc, businessID: body.businessID })
-      this.showInit(body, wire, res)
-      if (res.code !== 'D00000') throw new Error(`${res.code} ${res.message}${HINTS[res.code] ? ` — ${HINTS[res.code]}` : ''}`)
-      this.savePg({ ticketID: res.content.ticketID, ticketAt: Date.now() })
-      state.saveSession({ ticketID: res.content.ticketID })
-      this.$('ticketID', this.step('qr')).value = res.content.ticketID
-      this.renderQr()
-      setStatus(this.$('status', init), `ticketID received — valid for 12 minutes. Continue with step 3.`, 'ok')
+      await this.sendInitiate(body, rlf, { method: methodValue, identifierCode: idc })
     }
 
     showInit(plain: unknown, wire: string, res: unknown) {
@@ -507,7 +593,7 @@ const browserSources = [...new Map(sources.filter((s) => !s.value.startsWith('Ap
       p.set('responseType', 'code')
       p.set('source', this.$('source', qr).value)
       p.set('redirectURI', this.$('redirectURI', qr).value.trim())
-      p.set('scope', 'eidapi_sua')
+      p.set('scope', this.dataset.scope ?? 'eidapi_sua')
       p.set('ticketID', this.$('ticketID', qr).value.trim() || '<ticketID from step 2>')
       p.set('lang', this.$('lang', qr).value)
       p.set('state', this.$('state', qr).value.trim())
@@ -524,7 +610,7 @@ const browserSources = [...new Map(sources.filter((s) => !s.value.startsWith('Ap
       setStatus(
         this.$('status', qr),
         ready
-          ? `${left !== null ? `About ${left} min left on this ticketID. ` : ''}${pg.identifierCode ? `Show the user identifier code ${pg.identifierCode} — the app displays it too.` : ''}`
+          ? `${left !== null ? `About ${left} min left on this ticketID. ` : ''}${this.flow === 'sua' && pg.identifierCode ? `Show the user identifier code ${pg.identifierCode} — the app displays it too.` : ''}`
           : 'Run step 2 first to get a ticketID.',
         ready ? 'ok' : 'info',
       )
@@ -543,19 +629,77 @@ const browserSources = [...new Map(sources.filter((s) => !s.value.startsWith('Ap
       const tok = await this.call('result', 'getToken', '/api/v1/auth/getToken', { code: cb.code, grantType: 'authorization_code' })
       if (tok.res.code !== 'D00000') throw new Error(`getToken: ${tok.res.code} ${tok.res.message}${tok.res.code === 'D40004' ? ' — the code is single use and expires after 1 minute; run getQR again' : ''}`)
       const { accessToken, openID } = tok.res.content
-      const methods = String(this.pg().method ?? 'FR').split(',')
-      const out = await this.call('result', 'getResult', '/api/v1/anonymous/sua/getResult', { accessToken, openID }, { key: 'suaMethod', value: methods })
+      const rlf = this.flow === 'sua' ? { key: 'suaMethod', value: String(this.pg().method ?? 'FR').split(',') } : undefined
+      const out = await this.call('result', 'getResult', this.dataset.resultPath!, { accessToken, openID }, rlf)
       this.$('response', resStep).textContent = pretty({ getToken: tok.res, getResult: out.res })
       show(this.$('resultOut', resStep), true)
       if (out.res.code !== 'D00000') throw new Error(`getResult: ${out.res.code} ${out.res.message}`)
+      if (this.flow === 'ff') {
+        await this.renderFormData(out.res.content ?? {})
+        setStatus(this.$('status', resStep), 'Done. The accessToken was single use and is now spent.', 'ok')
+        history.replaceState(null, '', location.pathname)
+        return
+      }
       const passed = out.res.content?.isPassed === true
       this.$('verdict', resStep).textContent = passed ? '✓ isPassed: true — the same person passed step-up authentication' : '✗ isPassed: false'
       this.$('verdict', resStep).dataset.passed = String(passed)
       setStatus(this.$('status', resStep), 'Done. The accessToken was single use and is now spent.', 'ok')
       history.replaceState(null, '', location.pathname)
     }
+
+    async renderFormData(content: Record<string, any>) {
+      const resStep = this.step('result')
+      const rows = this.$('dataRows', resStep) as HTMLElement
+      rows.replaceChildren()
+      const add = (field: string, value: Node | string) => {
+        const tr = document.createElement('tr')
+        const th = document.createElement('th')
+        const code = document.createElement('code')
+        code.textContent = field
+        th.append(code)
+        const td = document.createElement('td')
+        td.append(value)
+        tr.append(th, td)
+        rows.append(tr)
+      }
+      const phone = (v: any) => (v?.CountryCode ? `+${v.CountryCode} ${v.SubscriberNumber ?? ''}` : JSON.stringify(v))
+      const lines = (v: any) => (v ? Object.values(v).filter(Boolean).join(', ') : '')
+      const fields = Object.keys(content)
+      for (const field of fields) {
+        const v = content[field]
+        if (field === 'idNo') add(field, `${v?.Identification ?? ''}(${v?.CheckDigit ?? ''})`)
+        else if (field === 'enName') add(field, v?.UnstructuredName ?? JSON.stringify(v))
+        else if (field === 'chName') add(field, v?.ChineseName ?? JSON.stringify(v))
+        else if (/TelNumber$|^mobileNumber$/.test(field)) add(field, phone(v))
+        else if (field === 'residentialAddress' || field === 'postalAddress') {
+          const pre = document.createElement('pre')
+          pre.textContent = pretty(v)
+          add(field, pre)
+        } else if (field === 'addressDocInfo') {
+          add(field, `${v?.enProviderName ?? ''} · ${v?.enUserName ?? ''} · ${lines(v?.enServiceAddress)}`)
+        } else if (field === 'addressDocFile') {
+          const span = document.createElement('span')
+          if (v?.docFile) {
+            const bytes = Uint8Array.from(atob(v.docFile), (c) => c.charCodeAt(0))
+            const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (b) => b.toString(16).padStart(2, '0')).join('')
+            const a = document.createElement('a')
+            a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }))
+            a.download = 'e-bill.pdf'
+            a.textContent = `Download e-bill PDF (${Math.round(bytes.length / 1024)} KB)`
+            const ok = v.docHash && digest.toLowerCase() === String(v.docHash).toLowerCase()
+            span.append(a, ` — SHA-256 ${ok ? 'matches docHash ✓' : v.docHash ? 'does NOT match docHash' : 'computed, no docHash to compare'}`)
+          } else span.textContent = pretty(v)
+          add(field, span)
+        } else add(field, typeof v === 'object' ? pretty(v) : String(v))
+      }
+      const requested = [...new Set([...(this.pg().profileFields ?? []), ...(this.pg().eMEFields ?? [])])] as string[]
+      const missing = requested.filter((f) => !(f in content))
+      const verdict = this.$('verdict', resStep)
+      verdict.textContent = `✓ ${fields.length} field${fields.length === 1 ? '' : 's'} returned${missing.length ? ` · not returned: ${missing.join(', ')}` : ''}`
+      verdict.dataset.passed = 'true'
+    }
   }
-  if (!customElements.get('sua-playground')) customElements.define('sua-playground', SuaPlaygroundEl)
+  if (!customElements.get('flow-playground')) customElements.define('flow-playground', FlowPlaygroundEl)
 </script>
 
 <style>
@@ -615,6 +759,14 @@ const browserSources = [...new Map(sources.filter((s) => !s.value.startsWith('Ap
   }
   :global(:root[data-theme='light']) .sua-button {
     color: #fff;
+  }
+  .sua-data :global(pre) {
+    margin: 0;
+    padding: 0.4rem;
+    font-size: 0.75rem;
+  }
+  .sua-data :global(th) {
+    white-space: nowrap;
   }
   .sua-verdict {
     font-size: var(--sl-text-xl);

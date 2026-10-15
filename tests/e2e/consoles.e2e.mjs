@@ -178,11 +178,11 @@ try {
     await page.waitForFunction(() => /isPassed/.test(document.querySelector('ist-decrypt [data-el=out]')?.textContent ?? ''), null, { timeout: 10000 })
   })
   // ---- anonymous step-up playground ------------------------------------------------------
-  const pgEl = (step, name) => page.locator(`sua-playground [data-step=${step}] [data-el=${name}]`)
-  const pg0 = (name) => page.locator(`sua-playground [data-el=${name}]`).first()
+  const pgEl = (step, name) => page.locator(`flow-playground [data-step=${step}] [data-el=${name}]`)
+  const pg0 = (name) => page.locator(`flow-playground [data-el=${name}]`).first()
   const waitStatus = (step, re) =>
     page.waitForFunction(
-      ([s, src]) => new RegExp(src).test(document.querySelector(`sua-playground [data-step=${s}] [data-el=status]`)?.textContent ?? ''),
+      ([s, src]) => new RegExp(src).test(document.querySelector(`flow-playground [data-step=${s}] [data-el=status]`)?.textContent ?? ''),
       [step, re.source],
       { timeout: 15000 },
     )
@@ -197,14 +197,14 @@ try {
     await pg0('pem').dispatchEvent('change')
     await pg0('modeManual').check()
     await pgEl('sign', 'signGo').click()
-    const curl = await page.locator('sua-playground [data-step=sign] [data-el=manual] pre').textContent({ timeout: 10000 })
+    const curl = await page.locator('flow-playground [data-step=sign] [data-el=manual] pre').textContent({ timeout: 10000 })
     // Execute the curl command ourselves, as a user would in a terminal.
     const url = curl.match(/curl -sS -X POST '([^']+)'/)[1]
     const headers = Object.fromEntries([...curl.matchAll(/-H '([^:]+): ([^']*)'/g)].map((m) => [m[1], m[2]]))
     const body = curl.match(/--data-raw '([^']*)'/)?.[1]
     const response = await (await fetch(url, { method: 'POST', headers, body })).text()
-    await page.locator('sua-playground [data-step=sign] [data-el=manual] textarea').fill(response)
-    await page.locator('sua-playground [data-step=sign] [data-el=manual] button', { hasText: 'Continue' }).click()
+    await page.locator('flow-playground [data-step=sign] [data-el=manual] textarea').fill(response)
+    await page.locator('flow-playground [data-step=sign] [data-el=manual] button', { hasText: 'Continue' }).click()
     await waitStatus('sign', /Signature accepted|failed|Error/)
     if (!/Signature accepted/.test(await statusText('sign'))) throw new Error(await statusText('sign'))
   })
@@ -212,7 +212,7 @@ try {
   await step('Playground: initiateRequest sent from the browser', async () => {
     await pg0('modeSend').check()
     await pgEl('init', 'hkic').fill('A123456(7)')
-    await page.locator('sua-playground input[name=sua-method][value="FR,NFC"]').check()
+    await page.locator('flow-playground input[name=sua-method][value="FR,NFC"]').check()
     await pgEl('init', 'initGo').click()
     await waitStatus('init', /ticketID received|D\d{5}|could not|Enter/)
     if (!/ticketID received/.test(await statusText('init'))) throw new Error(await statusText('init'))
@@ -230,7 +230,31 @@ try {
     await page.goto(href)
     await page.getByRole('link', { name: 'Approve' }).click()
     await page.waitForURL(/playground\/anonymous-step-up\//)
-    await page.waitForFunction(() => /isPassed: true/.test(document.querySelector('sua-playground [data-el=verdict]')?.textContent ?? ''), null, { timeout: 15000 })
+    await page.waitForFunction(() => /isPassed: true/.test(document.querySelector('flow-playground [data-el=verdict]')?.textContent ?? ''), null, { timeout: 15000 })
+  })
+  await step('Form filling playground: initiateRequest → getQR → approve → data', async () => {
+    await page.goto(`${site}playground/anonymous-form-filling/`)
+    await pg0('env').selectOption('mock')
+    await pg0('clientId').fill('demo-client')
+    await pg0('secret').fill('demo-secret')
+    await pg0('pem').fill(pem)
+    await pg0('pem').dispatchEvent('change')
+    await pg0('modeSend').check()
+    await page.locator('flow-playground input[name=ff-eme][value=addressDocInfo]').check()
+    await pgEl('init', 'initGo').click()
+    await waitStatus('init', /ticketID received|D\d{5}|could not|Enter|Select/)
+    if (!/ticketID received/.test(await statusText('init'))) throw new Error(await statusText('init'))
+    const plain = JSON.parse(await pgEl('init', 'plain').textContent())
+    if (!plain.profileFields?.includes('idNo') || !plain.eMEFields?.includes('addressDocInfo')) throw new Error(`fields not sent: ${JSON.stringify(plain)}`)
+    if (/rateLimitFactor: /.test(await pgEl('init', 'wire').textContent())) throw new Error('form filling must not send rateLimitFactor')
+    const href = await pgEl('qr', 'qrOpen').getAttribute('href')
+    if (!/scope=eidapi_formFilling/.test(href)) throw new Error(`bad scope in ${href}`)
+    await page.goto(href)
+    await page.getByRole('link', { name: 'Approve' }).click()
+    await page.waitForURL(/playground\/anonymous-form-filling\//)
+    await page.waitForFunction(() => /fields? returned/.test(document.querySelector('flow-playground [data-el=verdict]')?.textContent ?? ''), null, { timeout: 15000 })
+    const table = await page.locator('flow-playground [data-el=dataRows]').textContent()
+    if (!/A123456\(A\)/.test(table) || !/SAN, Chi Nan/.test(table)) throw new Error(`unexpected data table: ${table.slice(0, 200)}`)
   })
 } finally {
   await browser.close()

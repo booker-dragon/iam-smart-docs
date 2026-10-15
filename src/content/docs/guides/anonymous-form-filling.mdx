@@ -7,6 +7,10 @@ import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components'
 
 Scope: `eidapi_formFilling` · Spec §5
 
+<Aside type="tip" title="Try it end to end">
+  The [anonymous form filling playground](/playground/anonymous-form-filling/) runs signing, initiateRequest, getQR and getResult for you, with encryption handled automatically.
+</Aside>
+
 Anonymous form filling works without a prior login. The `accessToken` you get at the end can be used **once**, to fetch the result.
 
 <Steps>
