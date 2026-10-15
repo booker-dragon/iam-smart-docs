@@ -3,9 +3,13 @@ title: Anonymous Step-up Authentication
 description: Verify a person who has not logged in, with NFC and/or facial recognition, restricted to a specific HKIC.
 ---
 
-import { Steps } from '@astrojs/starlight/components'
+import { Aside, Steps } from '@astrojs/starlight/components'
 
 Scope: `eidapi_sua` · Spec §12
+
+<Aside type="tip" title="Try it end to end">
+  The [anonymous step-up playground](/playground/anonymous-step-up/) runs signing, initiateRequest, getQR and the result for you, with encryption handled automatically.
+</Aside>
 
 <Steps>
 

@@ -79,6 +79,10 @@ export default defineConfig({
         },
         { label: 'Developer tools', slug: 'tools', badge: { text: 'Interactive', variant: 'tip' } },
         {
+          label: 'Playgrounds',
+          items: [{ label: 'Anonymous step-up', slug: 'playground/anonymous-step-up', badge: { text: 'New', variant: 'success' } }],
+        },
+        {
           label: 'Reference',
           items: [
             { label: 'Response format & HTTP status', slug: 'reference/response-format' },

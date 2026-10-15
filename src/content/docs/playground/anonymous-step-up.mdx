@@ -1,0 +1,16 @@
+---
+title: 'Playground: anonymous step-up'
+description: Test request signing, the anonymous SUA initiateRequest and getQR against the iAM Smart testing gateway or the local mock — content encryption is handled for you.
+tableOfContents: false
+---
+
+import { Aside } from '@astrojs/starlight/components'
+import SuaPlayground from '../../../components/SuaPlayground.astro'
+
+Walk through [anonymous step-up authentication](/guides/anonymous-step-up-authentication/) one step at a time. You only fill in business fields: this page fetches the content encryption key (CEK), unwraps it with your KEK private key, encrypts every request body, decrypts every response and refreshes the key when it expires.
+
+<Aside type="caution" title="Test credentials only">
+  Everything runs in your browser and goes straight to the gateway you choose. Use testing-environment credentials, or the [local mock](/guides/mock-server/) (`npm run mock`, client `demo-client` / `demo-secret`). If the gateway refuses browser requests, pick **I run curl and paste the response** — the page still does all the encryption.
+</Aside>
+
+<SuaPlayground />

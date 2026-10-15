@@ -177,6 +177,61 @@ try {
     await page.locator('ist-decrypt [data-el=go]').click()
     await page.waitForFunction(() => /isPassed/.test(document.querySelector('ist-decrypt [data-el=out]')?.textContent ?? ''), null, { timeout: 10000 })
   })
+  // ---- anonymous step-up playground ------------------------------------------------------
+  const pgEl = (step, name) => page.locator(`sua-playground [data-step=${step}] [data-el=${name}]`)
+  const pg0 = (name) => page.locator(`sua-playground [data-el=${name}]`).first()
+  const waitStatus = (step, re) =>
+    page.waitForFunction(
+      ([s, src]) => new RegExp(src).test(document.querySelector(`sua-playground [data-step=${s}] [data-el=status]`)?.textContent ?? ''),
+      [step, re.source],
+      { timeout: 15000 },
+    )
+  const statusText = (step) => pgEl(step, 'status').textContent()
+
+  await step('Playground: signing check in copy-curl mode', async () => {
+    await page.goto(`${site}playground/anonymous-step-up/`)
+    await pg0('env').selectOption('mock')
+    await pg0('clientId').fill('demo-client')
+    await pg0('secret').fill('demo-secret')
+    await pg0('pem').fill(pem)
+    await pg0('pem').dispatchEvent('change')
+    await pg0('modeManual').check()
+    await pgEl('sign', 'signGo').click()
+    const curl = await page.locator('sua-playground [data-step=sign] [data-el=manual] pre').textContent({ timeout: 10000 })
+    // Execute the curl command ourselves, as a user would in a terminal.
+    const url = curl.match(/curl -sS -X POST '([^']+)'/)[1]
+    const headers = Object.fromEntries([...curl.matchAll(/-H '([^:]+): ([^']*)'/g)].map((m) => [m[1], m[2]]))
+    const body = curl.match(/--data-raw '([^']*)'/)?.[1]
+    const response = await (await fetch(url, { method: 'POST', headers, body })).text()
+    await page.locator('sua-playground [data-step=sign] [data-el=manual] textarea').fill(response)
+    await page.locator('sua-playground [data-step=sign] [data-el=manual] button', { hasText: 'Continue' }).click()
+    await waitStatus('sign', /Signature accepted|failed|Error/)
+    if (!/Signature accepted/.test(await statusText('sign'))) throw new Error(await statusText('sign'))
+  })
+
+  await step('Playground: initiateRequest sent from the browser', async () => {
+    await pg0('modeSend').check()
+    await pgEl('init', 'hkic').fill('A123456(7)')
+    await page.locator('sua-playground input[name=sua-method][value="FR,NFC"]').check()
+    await pgEl('init', 'initGo').click()
+    await waitStatus('init', /ticketID received|D\d{5}|could not|Enter/)
+    if (!/ticketID received/.test(await statusText('init'))) throw new Error(await statusText('init'))
+    const plain = JSON.parse(await pgEl('init', 'plain').textContent())
+    const expectedHash = crypto.createHash('sha256').update('A123456').digest('base64')
+    if (plain.HKICHash !== expectedHash) throw new Error('HKICHash mismatch')
+    if (plain.suaMethod !== '{"and":["FR","NFC"]}') throw new Error(`suaMethod ${plain.suaMethod}`)
+    if (!/rateLimitFactor: /.test(await pgEl('init', 'wire').textContent())) throw new Error('rateLimitFactor header missing')
+    if (!(await pgEl('qr', 'ticketID').inputValue())) throw new Error('ticketID not passed to step 3')
+  })
+
+  await step('Playground: getQR → approve → result on the playground page', async () => {
+    const href = await pgEl('qr', 'qrOpen').getAttribute('href')
+    if (!/scope=eidapi_sua/.test(href) || !/ticketID=[0-9a-f]{32}/.test(href)) throw new Error(`bad getQR URL ${href}`)
+    await page.goto(href)
+    await page.getByRole('link', { name: 'Approve' }).click()
+    await page.waitForURL(/playground\/anonymous-step-up\//)
+    await page.waitForFunction(() => /isPassed: true/.test(document.querySelector('sua-playground [data-el=verdict]')?.textContent ?? ''), null, { timeout: 15000 })
+  })
 } finally {
   await browser.close()
   mock.kill()

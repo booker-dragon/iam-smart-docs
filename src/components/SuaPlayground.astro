@@ -1,0 +1,630 @@
+---
+// Guided playground for Anonymous Step-up Authentication (spec §12):
+//   1. request signing check + automatic CEK  →  2. initiateRequest  →  3. getQR  →  4. result
+// Content encryption is fully automatic: the CEK is fetched, unwrapped, cached and refreshed for you.
+import { ENVIRONMENTS } from '../lib/console-state.js'
+import { sources } from '../data/iam-smart.js'
+
+const browserSources = [...new Map(sources.filter((s) => !s.value.startsWith('App_')).map((s) => [s.value, s])).values()]
+---
+
+<sua-playground class="sua not-content">
+  <!-- ============ Settings ============ -->
+  <section class="ist sua-step">
+    <header><span class="sua-num">0</span><h3>Your test credentials</h3></header>
+    <div class="ist-grid">
+      <label>Gateway
+        <select data-el="env">
+          {ENVIRONMENTS.map((e) => <option value={e.id}>{e.label}</option>)}
+        </select>
+      </label>
+      <label data-el="customRow" class="ist-hidden">Base URL <input type="text" data-el="customUrl" placeholder="https://…" spellcheck="false" /></label>
+      <label>clientID <input type="text" data-el="clientId" autocomplete="off" spellcheck="false" /></label>
+      <label>Client secret <input type="password" data-el="secret" autocomplete="off" spellcheck="false" /></label>
+    </div>
+    <div class="ist-grid">
+      <label>KEK private key <small>PEM, unencrypted — unwraps the content encryption key</small>
+        <textarea data-el="pem" rows="3" spellcheck="false" placeholder="-----BEGIN PRIVATE KEY-----"></textarea>
+      </label>
+      <label>RSA padding for the CEK
+        <select data-el="padding">
+          <option value="auto">Auto-detect</option>
+          <option value="pkcs1">PKCS#1 v1.5</option>
+          <option value="oaep-sha1">OAEP SHA-1</option>
+          <option value="oaep-sha256">OAEP SHA-256</option>
+        </select>
+      </label>
+    </div>
+    <fieldset>
+      <legend>How requests reach the gateway</legend>
+      <div class="ist-checks">
+        <label class="ist-inline"><input type="radio" name="sua-mode" value="send" data-el="modeSend" checked /> Send from this browser</label>
+        <label class="ist-inline"><input type="radio" name="sua-mode" value="manual" data-el="modeManual" /> I run curl and paste the response (if the gateway blocks browsers)</label>
+      </div>
+    </fieldset>
+    <label class="ist-inline"><input type="checkbox" data-el="keep" checked /> Keep the secret and key in this tab so step 4 works after the redirect (cleared when the tab closes)</label>
+    <p class="ist-status" data-el="cekStatus"></p>
+  </section>
+
+  <!-- ============ 1. Signing ============ -->
+  <section class="ist sua-step" data-step="sign">
+    <header><span class="sua-num">1</span><h3>Check request signing</h3></header>
+    <p class="ist-note">
+      Sends a signed <code>POST /api/v1/security/getKey</code>. Success means your clientID, secret and signature are right — and the returned
+      content encryption key (CEK) is unwrapped and stored, so you never handle it yourself.
+    </p>
+    <div class="ist-actions"><button type="button" data-el="signGo">Test signing &amp; get CEK</button></div>
+    <p class="ist-status" data-el="status" role="status"></p>
+    <div class="sua-manual ist-hidden" data-el="manual"></div>
+    <details data-el="sigWrap" class="ist-hidden">
+      <summary>How this request was signed</summary>
+      <div class="ist-output"><h4>Signed string (clientID + signatureMethod + timestamp + nonce + body)</h4><pre data-el="signed"></pre></div>
+      <div class="ist-output"><h4>Headers sent</h4><pre data-el="headers"></pre><button type="button" class="ist-copy" data-copy-target="[data-step=sign] [data-el=headers]">Copy</button></div>
+    </details>
+    <details>
+      <summary>Compute a signature by hand (compare with your own code)</summary>
+      <div class="ist-grid">
+        <label>timestamp <input type="text" data-el="hTs" inputmode="numeric" value="1557048906183" /></label>
+        <label>nonce <input type="text" data-el="hNonce" value="e893647dc4204eb9b7b8eddd527b687c" spellcheck="false" /></label>
+      </div>
+      <label>Request body exactly as sent (after encryption; empty for getKey)
+        <textarea data-el="hBody" rows="2" spellcheck="false"></textarea>
+      </label>
+      <div class="ist-output"><pre data-el="hOut">Enter clientID and secret above.</pre></div>
+    </details>
+  </section>
+
+  <!-- ============ 2. initiateRequest ============ -->
+  <section class="ist sua-step" data-step="init">
+    <header><span class="sua-num">2</span><h3>Anonymous SUA initiateRequest</h3></header>
+    <p class="ist-note"><code>POST /api/v1/anonymous/sua/initiateRequest</code> — fill in the business fields; the body is encrypted and the <code>rateLimitFactor</code> header added for you.</p>
+    <div class="ist-grid">
+      <label>HKIC number of the person <small>hashed here; only the hash is sent</small>
+        <input type="text" data-el="hkic" placeholder="A123456(7)" autocomplete="off" spellcheck="false" />
+      </label>
+      <label>HKICHash <input type="text" data-el="hkicHash" readonly /></label>
+    </div>
+    <fieldset>
+      <legend>suaMethod</legend>
+      <div class="ist-checks">
+        <label class="ist-inline"><input type="radio" name="sua-method" value="FR" checked /> Facial recognition</label>
+        <label class="ist-inline"><input type="radio" name="sua-method" value="NFC" /> NFC (smart HKIC)</label>
+        <label class="ist-inline"><input type="radio" name="sua-method" value="FR,NFC" /> Both</label>
+      </div>
+    </fieldset>
+    <div class="ist-grid">
+      <label>identifierCode <small>shown to the user, ≤ 10 chars</small><input type="text" data-el="identifierCode" maxlength="10" /></label>
+      <label>suaMessage <small>optional registered code</small><input type="text" data-el="suaMessage" maxlength="10" spellcheck="false" /></label>
+      <label>suaWaitPeriod <small>optional, hours 0–720</small><input type="number" data-el="suaWaitPeriod" min="0" max="720" /></label>
+      <label>businessID <input type="text" data-el="businessID" maxlength="36" spellcheck="false" /></label>
+    </div>
+    <div class="ist-actions">
+      <button type="button" data-el="initGo">Send initiateRequest</button>
+      <button type="button" class="ist-secondary" data-el="initNew">New businessID</button>
+    </div>
+    <p class="ist-status" data-el="status" role="status"></p>
+    <div class="sua-manual ist-hidden" data-el="manual"></div>
+    <div data-el="initOut" class="ist-hidden">
+      <div class="ist-output"><h4>Response (decrypted)</h4><pre data-el="response"></pre></div>
+      <details>
+        <summary>Request: plain body and what went over the wire</summary>
+        <div class="ist-output"><h4>Plain body</h4><pre data-el="plain"></pre></div>
+        <div class="ist-output"><h4>HTTP request</h4><pre data-el="wire"></pre><button type="button" class="ist-copy" data-copy-target="[data-step=init] [data-el=wire]">Copy</button></div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ============ 3. getQR ============ -->
+  <section class="ist sua-step" data-step="qr">
+    <header><span class="sua-num">3</span><h3>getQR</h3></header>
+    <p class="ist-note">
+      Open this URL in the user's browser. iAM Smart shows a QR code (or opens the app on a phone); after the check, the browser goes to
+      <code>redirectURI</code> with <code>code</code> and <code>state</code>. Leave the redirect URI as this page to finish in step 4 — on the real
+      testing gateway it must be whitelisted in the Self-Service Portal.
+    </p>
+    <div class="ist-grid">
+      <label>ticketID <input type="text" data-el="ticketID" spellcheck="false" /></label>
+      <label>source
+        <select data-el="source">{browserSources.map((s) => <option value={s.value}>{s.value}</option>)}</select>
+      </label>
+      <label>lang
+        <select data-el="lang"><option value="en-US">en-US</option><option value="zh-HK">zh-HK</option><option value="zh-CN">zh-CN</option></select>
+      </label>
+      <label>state <input type="text" data-el="state" spellcheck="false" /></label>
+    </div>
+    <label>redirectURI <input type="text" data-el="redirectURI" spellcheck="false" /></label>
+    <label class="ist-inline"><input type="checkbox" data-el="brokerPage" /> brokerPage (open the app directly on phones)</label>
+    <div class="ist-output"><pre data-el="qrUrl"></pre><button type="button" class="ist-copy" data-copy-target="[data-step=qr] [data-el=qrUrl]">Copy</button></div>
+    <div class="ist-actions"><a class="sua-button" data-el="qrOpen" href="#">Open getQR</a></div>
+    <p class="ist-status" data-el="status" role="status"></p>
+  </section>
+
+  <!-- ============ 4. Result ============ -->
+  <section class="ist sua-step" data-step="result">
+    <header><span class="sua-num">4</span><h3>Result</h3></header>
+    <p class="ist-note">
+      Back from iAM Smart with <code>?code=…</code>, this page exchanges the code (single use, 1 minute) with <code>getToken</code> and calls
+      <code>/api/v1/anonymous/sua/getResult</code>. Or paste the URL your own callback received.
+    </p>
+    <label>Callback URL <textarea data-el="cbUrl" rows="2" spellcheck="false" placeholder="https://…?code=…&amp;state=…"></textarea></label>
+    <div class="ist-actions"><button type="button" data-el="resultGo">Get result</button></div>
+    <p class="ist-status" data-el="status" role="status"></p>
+    <div class="sua-manual ist-hidden" data-el="manual"></div>
+    <div data-el="resultOut" class="ist-hidden">
+      <p class="sua-verdict" data-el="verdict"></p>
+      <div class="ist-output"><pre data-el="response"></pre></div>
+    </div>
+  </section>
+
+  <section class="ist sua-step">
+    <div class="ist-actions">
+      <button type="button" class="ist-secondary" data-el="reset">Start over</button>
+      <span class="ist-note" data-el="cekFoot"></span>
+    </div>
+  </section>
+</sua-playground>
+
+<script>
+  import { buildRequest, decryptContent, hkicHash, randomState, signRequest, unwrapCek } from '../lib/iam-smart-crypto.js'
+  import { baseUrl, canSend, cekValid, parseCallbackUrl, state } from '../lib/console-state.js'
+  import { detectSource, setStatus, show, wireCopyButtons } from '../lib/ui.js'
+
+  const PG = 'ist-sua-playground'
+  const CEK_ERRORS = new Set(['D30001', 'D30002'])
+  const HINTS: Record<string, string> = {
+    D20006: 'Signature rejected — check the client secret and that clientID matches it.',
+    D20003: 'A parameter is invalid (for example the clientID, or a timestamp older than your previous request).',
+    D20004: 'Looks like a replayed request — use a fresh nonce.',
+    D20012: 'This client is not approved for the scope or API (eidapi_sua, NFC/FR in the e-Service Management Portal).',
+    D30001: 'No valid KEK certificate for this client — upload it in the Self-Service Portal.',
+  }
+  const read = (k: string) => {
+    try {
+      return JSON.parse(sessionStorage.getItem(k) ?? '{}') ?? {}
+    } catch {
+      return {}
+    }
+  }
+  const write = (k: string, v: unknown) => {
+    try {
+      sessionStorage.setItem(k, JSON.stringify(v))
+    } catch {
+      /* storage unavailable */
+    }
+  }
+  const pretty = (v: unknown) => JSON.stringify(v, null, 2)
+  const hex = (n: number) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => b.toString(16).padStart(2, '0')).join('')
+
+  class SuaPlaygroundEl extends HTMLElement {
+    $(name: string, scope: ParentNode = this): any {
+      return scope.querySelector(`[data-el=${name}]`)
+    }
+    step(id: string): HTMLElement {
+      return this.querySelector(`[data-step=${id}]`)!
+    }
+    pg() {
+      return read(PG)
+    }
+    savePg(patch: Record<string, unknown>) {
+      write(PG, { ...this.pg(), ...patch })
+    }
+
+    connectedCallback() {
+      wireCopyButtons(this)
+      const settings = state.settings()
+      const secrets = state.secrets()
+      this.$('env').value = settings.env
+      this.$('customUrl').value = settings.customUrl
+      this.$('clientId').value = settings.clientId
+      this.$('secret').value = secrets.clientSecret
+      this.$('pem').value = secrets.privateKeyPem
+      this.$('keep').checked = secrets.keep || !secrets.clientSecret
+      const pg = this.pg()
+      if (pg.mode === 'manual') this.$('modeManual').checked = true
+
+      const saveConn = () => {
+        show(this.$('customRow'), this.$('env').value === 'custom')
+        state.saveSettings({ env: this.$('env').value, customUrl: this.$('customUrl').value.trim(), clientId: this.$('clientId').value.trim() })
+        state.saveSecrets({ clientSecret: this.$('secret').value, privateKeyPem: this.$('pem').value, keep: this.$('keep').checked })
+        this.savePg({ mode: this.$('modeManual').checked ? 'manual' : 'send' })
+        this.renderCek()
+        this.renderHandSignature()
+      }
+      for (const n of ['env', 'customUrl', 'clientId', 'secret', 'pem', 'keep', 'modeSend', 'modeManual']) this.$(n).addEventListener('change', saveConn)
+      saveConn()
+
+      // Step 1
+      this.$('signGo').addEventListener('click', () => this.run('sign', () => this.signingCheck()))
+      for (const n of ['hTs', 'hNonce', 'hBody']) this.$(n).addEventListener('input', () => this.renderHandSignature())
+
+      // Step 2
+      const init = this.step('init')
+      this.$('identifierCode', init).value = pg.identifierCode ?? String(1000 + Math.floor(Math.random() * 9000))
+      this.$('businessID', init).value = pg.businessID ?? hex(16)
+      if (pg.method) (this.querySelector(`input[name=sua-method][value="${pg.method}"]`) as HTMLInputElement | null)?.click()
+      this.$('hkic', init).addEventListener('input', () => this.updateHash())
+      this.$('initNew', init).addEventListener('click', () => (this.$('businessID', init).value = hex(16)))
+      this.$('initGo', init).addEventListener('click', () => this.run('init', () => this.initiate()))
+      if (pg.initResponse) this.showInit(pg.initRequestPlain, pg.initWire, pg.initResponse)
+
+      // Step 3
+      const qr = this.step('qr')
+      this.$('ticketID', qr).value = pg.ticketID ?? ''
+      this.$('source', qr).value = detectSource()
+      this.$('state', qr).value = pg.expectedState ?? randomState()
+      this.$('redirectURI', qr).value = pg.redirectURI ?? location.origin + location.pathname
+      qr.addEventListener('input', () => this.renderQr())
+      qr.addEventListener('change', () => this.renderQr())
+      this.renderQr()
+
+      // Step 4
+      this.$('resultGo', this.step('result')).addEventListener('click', () => this.run('result', () => this.result()))
+      if (/[?&](code|error_code)=/.test(location.search)) {
+        this.$('cbUrl', this.step('result')).value = location.href
+        this.step('result').scrollIntoView({ block: 'start' })
+        if (this.$('secret').value) this.run('result', () => this.result())
+        else setStatus(this.$('status', this.step('result')), 'Back from iAM Smart. Re-enter your client secret above, then press Get result within a minute.', 'info')
+      }
+
+      this.$('reset').addEventListener('click', () => {
+        write(PG, { mode: this.pg().mode })
+        state.saveSession({ ticketID: '', expectedState: '' })
+        location.href = location.origin + location.pathname
+      })
+    }
+
+    // ---------------------------------------------------------------- connection & CEK
+    conn() {
+      const settings = { ...state.settings(), env: this.$('env').value, customUrl: this.$('customUrl').value.trim() }
+      const clientId = this.$('clientId').value.trim()
+      const clientSecret = this.$('secret').value
+      if (!clientId || !clientSecret) throw new Error('Enter your clientID and client secret in step 0')
+      const manual = this.$('modeManual').checked
+      if (!manual && !canSend(settings)) throw new Error('Production cannot be called from the browser — choose “I run curl and paste the response”, or another gateway')
+      const url = baseUrl(settings)
+      if (!url) throw new Error('Enter the base URL')
+      return { url, clientId, clientSecret, manual }
+    }
+
+    renderCek() {
+      const s = state.session()
+      const text = cekValid(s)
+        ? `CEK ready${s.cekExpiresAt ? ` — valid until ${new Date(s.cekExpiresAt).toLocaleTimeString()}` : ''}. It is fetched again automatically when it expires.`
+        : 'No CEK yet — step 1 (or any request) fetches it automatically.'
+      setStatus(this.$('cekStatus'), text, cekValid(s) ? 'ok' : 'info')
+      this.$('cekFoot').textContent = ''
+    }
+
+    timestamp() {
+      const last = Number(state.session().lastTimestamp ?? 0)
+      const ts = Math.max(Date.now(), last + 1)
+      state.saveSession({ lastTimestamp: ts })
+      return ts
+    }
+
+    async ensureCek(stepId: string, force = false) {
+      const s = state.session()
+      if (!force && cekValid(s)) return s.cek as string
+      const pem = this.$('pem').value.trim()
+      if (!pem) throw new Error('Paste your KEK private key in step 0 — it is needed to unwrap the CEK')
+      const { url, clientId, clientSecret } = this.conn()
+      const req = await buildRequest({ clientId, clientSecret, timestamp: this.timestamp() })
+      this.showSignature(req)
+      const res = await this.transport(stepId, 'getKey (content encryption key)', `${url}/api/v1/security/getKey`, req)
+      if (res.code !== 'D00000') throw new Error(`getKey failed: ${res.code} ${res.message}${HINTS[res.code] ? ` — ${HINTS[res.code]}` : ''}`)
+      const { cekBase64, padding } = await unwrapCek(pem, res.content.secretKey, this.$('padding').value)
+      if (this.$('padding').value === 'auto') this.$('padding').value = padding
+      state.saveSession({ cek: cekBase64, cekExpiresAt: Number(res.content.issueAt) + Number(res.content.expiresIn) })
+      this.renderCek()
+      return cekBase64
+    }
+
+    /** Signed (and, with a body, encrypted) POST. Returns the response with `content` decrypted. */
+    async call(stepId: string, label: string, path: string, body: unknown, rateLimitFactor?: unknown, retried = false): Promise<any> {
+      const { url, clientId, clientSecret } = this.conn()
+      const cek = await this.ensureCek(stepId)
+      const req = await buildRequest({ clientId, clientSecret, cekBase64: cek, body, timestamp: this.timestamp(), rateLimitFactor })
+      const res = await this.transport(stepId, label, `${url}${path}`, req)
+      if (CEK_ERRORS.has(res.code) && !retried) {
+        await this.ensureCek(stepId, true)
+        return this.call(stepId, label, path, body, rateLimitFactor, true)
+      }
+      if (typeof res.content === 'string' && res.content) res.content = JSON.parse(await decryptContent(res.content, cek))
+      return { res, req }
+    }
+
+    /** Sends the request, or in manual mode shows curl and waits for the pasted response. */
+    async transport(stepId: string, label: string, fullUrl: string, req: { headers: Record<string, string>; body: string }): Promise<any> {
+      const box = this.$('manual', this.step(stepId))
+      if (!this.$('modeManual').checked) {
+        let r: Response
+        try {
+          r = await fetch(fullUrl, { method: 'POST', headers: req.headers, body: req.body || undefined })
+        } catch {
+          throw new Error('The browser could not reach the gateway, or it refused a cross-origin request. Switch step 0 to “I run curl and paste the response”.')
+        }
+        const text = await r.text()
+        if (!r.ok) throw new Error(`HTTP ${r.status}: ${text.slice(0, 200)}`)
+        return JSON.parse(text)
+      }
+      const q = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`
+      const curl = [
+        `curl -sS -X POST ${q(fullUrl)}`,
+        ...Object.entries(req.headers).map(([k, v]) => `  -H ${q(`${k}: ${v}`)}`),
+        ...(req.body ? [`  --data-raw ${q(req.body)}`] : []),
+      ].join(' \\\n')
+      box.innerHTML = ''
+      const title = document.createElement('h4')
+      title.textContent = `Run this now (${label}), then paste the JSON response`
+      const pre = document.createElement('pre')
+      pre.textContent = curl
+      const copy = document.createElement('button')
+      copy.type = 'button'
+      copy.className = 'ist-secondary'
+      copy.textContent = 'Copy curl'
+      copy.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(curl)
+          copy.textContent = 'Copied'
+        } catch {
+          copy.textContent = 'Select and copy manually'
+        }
+      })
+      const ta = document.createElement('textarea')
+      ta.rows = 4
+      ta.placeholder = '{"txID":"…","code":"D00000","message":"SUCCESS","content":"…"}'
+      const go = document.createElement('button')
+      go.type = 'button'
+      go.textContent = 'Continue with this response'
+      const actions = document.createElement('div')
+      actions.className = 'ist-actions'
+      actions.append(copy, go)
+      box.append(title, pre, ta, actions)
+      show(box, true)
+      return new Promise((resolve) => {
+        go.addEventListener('click', () => {
+          try {
+            const parsed = JSON.parse(ta.value)
+            show(box, false)
+            resolve(parsed)
+          } catch {
+            ta.setCustomValidity('Not valid JSON')
+            ta.reportValidity()
+          }
+        })
+      })
+    }
+
+    async run(stepId: string, fn: () => Promise<void>) {
+      const section = this.step(stepId)
+      const status = this.$('status', section)
+      const buttons = [...section.querySelectorAll<HTMLButtonElement>(':scope > .ist-actions button')]
+      buttons.forEach((b) => (b.disabled = true))
+      setStatus(status, 'Working…', 'info')
+      try {
+        await fn()
+      } catch (e: any) {
+        setStatus(status, e.message ?? String(e), 'error')
+      } finally {
+        buttons.forEach((b) => (b.disabled = false))
+      }
+    }
+
+    // ---------------------------------------------------------------- step 1
+    showSignature(req: { headers: Record<string, string>; signedMessage: string }) {
+      const sign = this.step('sign')
+      this.$('signed', sign).textContent = req.signedMessage
+      this.$('headers', sign).textContent = Object.entries(req.headers).map(([k, v]) => `${k}: ${v}`).join('\n')
+      show(this.$('sigWrap', sign), true)
+    }
+
+    async signingCheck() {
+      await this.ensureCek('sign', true)
+      const s = state.session()
+      setStatus(
+        this.$('status', this.step('sign')),
+        `Signature accepted (D00000). CEK unwrapped with ${this.$('padding').value} and stored until ${new Date(s.cekExpiresAt).toLocaleTimeString()}.`,
+        'ok',
+      )
+    }
+
+    async renderHandSignature() {
+      const out = this.$('hOut')
+      const clientId = this.$('clientId').value.trim()
+      const clientSecret = this.$('secret').value
+      if (!clientId || !clientSecret) {
+        out.textContent = 'Enter clientID and secret above.'
+        return
+      }
+      const r = await signRequest({ clientId, clientSecret, timestamp: this.$('hTs').value.trim(), nonce: this.$('hNonce').value.trim(), body: this.$('hBody').value })
+      out.textContent = `message    ${r.message}\nBase64     ${r.signature}\nURL-encoded ${r.signatureUrlEncoded}`
+    }
+
+    // ---------------------------------------------------------------- step 2
+    async updateHash() {
+      const init = this.step('init')
+      const v = this.$('hkic', init).value.trim()
+      if (!v) return (this.$('hkicHash', init).value = '')
+      try {
+        this.$('hkicHash', init).value = (await hkicHash(v)).base64
+      } catch {
+        this.$('hkicHash', init).value = ''
+      }
+    }
+
+    async initiate() {
+      const init = this.step('init')
+      await this.updateHash()
+      const HKICHash = this.$('hkicHash', init).value
+      if (!HKICHash) throw new Error('Enter a valid HKIC number, e.g. A123456(7)')
+      const methodValue = (this.querySelector('input[name=sua-method]:checked') as HTMLInputElement).value
+      const methods = methodValue.split(',')
+      const body: Record<string, unknown> = {
+        businessID: this.$('businessID', init).value.trim() || hex(16),
+        HKICHash,
+        suaMethod: JSON.stringify(methods.length > 1 ? { and: methods } : { unary: methods }),
+      }
+      const msg = this.$('suaMessage', init).value.trim()
+      if (msg) body.suaMessage = msg
+      const wait = this.$('suaWaitPeriod', init).value.trim()
+      if (wait) body.suaWaitPeriod = Number(wait)
+      const idc = this.$('identifierCode', init).value.trim()
+      if (idc) body.identifierCode = idc
+      const rlf = { key: 'suaMethod', value: methods }
+
+      const { res, req } = await this.call('init', 'initiateRequest', '/api/v1/anonymous/sua/initiateRequest', body, rlf)
+      const wire = [`POST …/api/v1/anonymous/sua/initiateRequest`, ...Object.entries(req.headers).map(([k, v]) => `${k}: ${v}`), '', req.body].join('\n')
+      this.savePg({ initRequestPlain: body, initWire: wire, initResponse: res, method: methodValue, identifierCode: idc, businessID: body.businessID })
+      this.showInit(body, wire, res)
+      if (res.code !== 'D00000') throw new Error(`${res.code} ${res.message}${HINTS[res.code] ? ` — ${HINTS[res.code]}` : ''}`)
+      this.savePg({ ticketID: res.content.ticketID, ticketAt: Date.now() })
+      state.saveSession({ ticketID: res.content.ticketID })
+      this.$('ticketID', this.step('qr')).value = res.content.ticketID
+      this.renderQr()
+      setStatus(this.$('status', init), `ticketID received — valid for 12 minutes. Continue with step 3.`, 'ok')
+    }
+
+    showInit(plain: unknown, wire: string, res: unknown) {
+      const init = this.step('init')
+      this.$('plain', init).textContent = pretty(plain)
+      this.$('wire', init).textContent = wire
+      this.$('response', init).textContent = pretty(res)
+      show(this.$('initOut', init), true)
+    }
+
+    // ---------------------------------------------------------------- step 3
+    renderQr() {
+      const qr = this.step('qr')
+      const { url: base } = (() => {
+        try {
+          return { url: baseUrl({ ...state.settings(), env: this.$('env').value, customUrl: this.$('customUrl').value.trim() }) }
+        } catch {
+          return { url: '' }
+        }
+      })()
+      const p = new URLSearchParams()
+      p.set('clientID', this.$('clientId').value.trim() || '<clientID>')
+      p.set('responseType', 'code')
+      p.set('source', this.$('source', qr).value)
+      p.set('redirectURI', this.$('redirectURI', qr).value.trim())
+      p.set('scope', 'eidapi_sua')
+      p.set('ticketID', this.$('ticketID', qr).value.trim() || '<ticketID from step 2>')
+      p.set('lang', this.$('lang', qr).value)
+      p.set('state', this.$('state', qr).value.trim())
+      if (this.$('brokerPage', qr).checked) p.set('brokerPage', 'true')
+      const url = `${base}/api/v1/auth/getQR?${p.toString().replace(/\+/g, '%20')}`
+      this.$('qrUrl', qr).textContent = url
+      this.$('qrOpen', qr).href = url
+      const expectedState = this.$('state', qr).value.trim()
+      this.savePg({ expectedState, redirectURI: this.$('redirectURI', qr).value.trim() })
+      state.saveSession({ expectedState })
+      const pg = this.pg()
+      const left = pg.ticketAt ? Math.max(0, 12 - Math.floor((Date.now() - pg.ticketAt) / 60000)) : null
+      const ready = Boolean(this.$('ticketID', qr).value.trim())
+      setStatus(
+        this.$('status', qr),
+        ready
+          ? `${left !== null ? `About ${left} min left on this ticketID. ` : ''}${pg.identifierCode ? `Show the user identifier code ${pg.identifierCode} — the app displays it too.` : ''}`
+          : 'Run step 2 first to get a ticketID.',
+        ready ? 'ok' : 'info',
+      )
+    }
+
+    // ---------------------------------------------------------------- step 4
+    async result() {
+      const resStep = this.step('result')
+      const cb = parseCallbackUrl(this.$('cbUrl', resStep).value)
+      if (!cb) throw new Error('Paste the callback URL (with code and state)')
+      if (cb.error_code) throw new Error(`iAM Smart returned ${cb.error_code} — the user rejected, timed out or failed the check. See Return codes.`)
+      const expected = this.pg().expectedState
+      if (expected && cb.state !== expected) throw new Error(`state mismatch: expected “${expected}”, got “${cb.state ?? ''}” — do not trust this callback`)
+      if (!cb.code) throw new Error('No code in the callback URL')
+
+      const tok = await this.call('result', 'getToken', '/api/v1/auth/getToken', { code: cb.code, grantType: 'authorization_code' })
+      if (tok.res.code !== 'D00000') throw new Error(`getToken: ${tok.res.code} ${tok.res.message}${tok.res.code === 'D40004' ? ' — the code is single use and expires after 1 minute; run getQR again' : ''}`)
+      const { accessToken, openID } = tok.res.content
+      const methods = String(this.pg().method ?? 'FR').split(',')
+      const out = await this.call('result', 'getResult', '/api/v1/anonymous/sua/getResult', { accessToken, openID }, { key: 'suaMethod', value: methods })
+      this.$('response', resStep).textContent = pretty({ getToken: tok.res, getResult: out.res })
+      show(this.$('resultOut', resStep), true)
+      if (out.res.code !== 'D00000') throw new Error(`getResult: ${out.res.code} ${out.res.message}`)
+      const passed = out.res.content?.isPassed === true
+      this.$('verdict', resStep).textContent = passed ? '✓ isPassed: true — the same person passed step-up authentication' : '✗ isPassed: false'
+      this.$('verdict', resStep).dataset.passed = String(passed)
+      setStatus(this.$('status', resStep), 'Done. The accessToken was single use and is now spent.', 'ok')
+      history.replaceState(null, '', location.pathname)
+    }
+  }
+  if (!customElements.get('sua-playground')) customElements.define('sua-playground', SuaPlaygroundEl)
+</script>
+
+<style>
+  .sua {
+    display: block;
+  }
+  .sua-step header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .sua-step h3 {
+    margin: 0;
+    font-size: var(--sl-text-lg);
+  }
+  .sua-num {
+    display: inline-grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    background: var(--sl-color-accent);
+    color: var(--sl-color-black);
+    flex: none;
+  }
+  :global(:root[data-theme='light']) .sua-num {
+    color: #fff;
+  }
+  .sua-manual {
+    border-left: 3px solid var(--sl-color-accent);
+    padding-left: 0.75rem;
+  }
+  .sua-manual :global(pre) {
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-size: 0.75rem;
+    background: var(--sl-color-black);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    padding: 0.6rem;
+    margin: 0.4rem 0;
+  }
+  .sua-manual :global(textarea) {
+    width: 100%;
+  }
+  .sua-button {
+    display: inline-block;
+    font-weight: 600;
+    font-size: var(--sl-text-sm);
+    padding: 0.4rem 0.9rem;
+    border-radius: 999px;
+    background: var(--sl-color-accent);
+    color: var(--sl-color-black);
+    text-decoration: none;
+  }
+  :global(:root[data-theme='light']) .sua-button {
+    color: #fff;
+  }
+  .sua-verdict {
+    font-size: var(--sl-text-xl);
+    font-weight: 700;
+    margin: 0;
+  }
+  .sua-verdict[data-passed='true'] {
+    color: var(--sl-color-green-high, #34d399);
+  }
+  .sua-verdict[data-passed='false'] {
+    color: var(--sl-color-red-high, #f87171);
+  }
+</style>
