@@ -46,6 +46,25 @@ Business responses are canned examples from the spec — it does not know real u
 
 </Steps>
 
+## Use it with the Try it consoles
+
+The mock answers browser requests (CORS), so every API page's **Try it** console can call it. A full login, entirely in your browser:
+
+<Steps>
+
+1. Start the mock as above. On [Request CEK](/api/operations/request-cek/), open **Try it**, choose **Local mock**, enter `demo-client` / `demo-secret`, paste the test `kek-private.pem` (tick *Keep in this tab*) and send. The CEK is unwrapped and saved for the other pages.
+2. On [Request QR Page](/api/operations/get-qr-page/), choose **Local mock**, set `redirectURI` to this site's [authCode callback page](/api/webhooks/auth-code-callback/) URL, and open the URL. Click **Approve** on the mock page.
+3. You land on the callback page, which reads `code`, checks `state` and saves the code.
+4. On [Request accessToken](/api/operations/request-access-token/), send — the code is pre-filled. The returned `accessToken` and `openID` are pre-filled on every other page, e.g. [Obtain Profiles](/api/operations/obtain-profiles/).
+
+</Steps>
+
+Callback pages also have a *Send a test callback* form: the mock encrypts the content with your KEK and posts it to your own server.
+
+<Aside type="note">
+  Chrome may ask permission for a public site to reach `localhost`, and Safari may block it. If that happens, open the docs locally with `npm run dev`.
+</Aside>
+
 <Aside type="caution">
   The mock reproduces documented behaviour only. Timeouts, rate limits, the real app and anything the spec doesn't describe will differ — always finish testing in the iAM Smart testing environment.
 </Aside>

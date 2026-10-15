@@ -1,0 +1,1297 @@
+[
+ {
+  "id": "request-cek",
+  "path": "/api/v1/security/getKey",
+  "summary": "Request Symmetric Content Encryption Key",
+  "tags": [
+   "Encryption Key"
+  ],
+  "deprecated": false,
+  "encrypted": false,
+  "rateLimit": false,
+  "kind": "post",
+  "method": "POST",
+  "examples": []
+ },
+ {
+  "id": "revoke-cek",
+  "path": "/api/v1/security/revokeKey",
+  "summary": "Revoke Symmetric Content Encryption Key",
+  "tags": [
+   "Encryption Key"
+  ],
+  "deprecated": false,
+  "encrypted": false,
+  "rateLimit": false,
+  "kind": "post",
+  "method": "POST",
+  "examples": []
+ },
+ {
+  "id": "get-qr-page",
+  "kind": "getqr",
+  "method": "GET",
+  "path": "/api/v1/auth/getQR",
+  "summary": "Request QR Page",
+  "deprecated": false
+ },
+ {
+  "id": "request-access-token",
+  "path": "/api/v1/auth/getToken",
+  "summary": "Request accessToken & Tokenised ID",
+  "tags": [
+   "Authentication",
+   "Anonymous Form Filling",
+   "Anonymous Digital Signing",
+   "Anonymous Bulk Digital Signing",
+   "Anonymous Step-up Authentication"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": false,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Login or anonymous workflow",
+    "value": {
+     "code": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "grantType": "authorization_code"
+    }
+   },
+   {
+    "name": "Direct Login v2",
+    "value": {
+     "code": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "isDirectLoginV2": "true",
+     "grantType": "authorization_code"
+    }
+   }
+  ]
+ },
+ {
+  "id": "verify-ccic-user",
+  "path": "/api/v1/ccic/verifyIsCcic",
+  "summary": "Verify CCIC User",
+  "tags": [
+   "Authentication"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": false,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D"
+    }
+   }
+  ]
+ },
+ {
+  "id": "get-last-login-status",
+  "path": "/api/v1/auth/account/getLastLoginStatus",
+  "summary": "Get Last Login Status",
+  "tags": [
+   "Authentication"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": false,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D"
+    }
+   }
+  ]
+ },
+ {
+  "id": "obtain-profiles",
+  "path": "/api/v1/profiles",
+  "summary": "Obtain Profiles Information",
+  "tags": [
+   "Profiles"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": false,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D",
+     "profileFields": [
+      "idNo",
+      "enName",
+      "gender",
+      "chName",
+      "birthDate"
+     ],
+     "eMEFields": [
+      "mobileNumber",
+      "emailAddress",
+      "addressDocInfo"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "request-form-filling",
+  "path": "/api/v2/account/formFilling/initiateRequest",
+  "summary": "Request Form Filling (v2)",
+  "tags": [
+   "Form Filling"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": false,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "businessID": "bbb8aae57c104cda40c93843ad5e6db8",
+     "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D",
+     "source": "Android_Chrome",
+     "redirectURI": "https://rp_domain/rp_context/call_back_endpoint",
+     "state": "eddd527b6",
+     "formName": "Example Account Registration Form",
+     "formNum": "APP0001",
+     "formDesc": "Example form description",
+     "callbackContentType": "multipart/form-data",
+     "profileFields": [
+      "idNo",
+      "enName",
+      "gender",
+      "chName",
+      "birthDate"
+     ],
+     "eMEFields": [
+      "mobileNumber",
+      "emailAddress",
+      "addressDocInfo"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "request-form-filling-appv2",
+  "path": "/api/appv2/account/formFilling/initiateRequest",
+  "summary": "Request Form Filling (appv2)",
+  "tags": [
+   "Form Filling"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": false,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "businessID": "bbb8aae57c104cda40c93843ad5e6db8",
+     "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D",
+     "source": "App_Package",
+     "packageName": "com.onlineservice.myapp",
+     "activityClass": "callback_activity",
+     "activityParams": "callback_param",
+     "serverRedirectURI": "https://rp_domain/rp_context/call_back_endpoint",
+     "state": "eddd527b6",
+     "formName": "Example Account Registration Form",
+     "formNum": "APP0001",
+     "callbackContentType": "multipart/form-data",
+     "profileFields": [
+      "idNo",
+      "enName"
+     ],
+     "eMEFields": [
+      "mobileNumber",
+      "emailAddress"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "request-anonymous-form-filling",
+  "path": "/api/v2/anonymous/formFilling/initiateRequest",
+  "summary": "Request Anonymous Form Filling",
+  "tags": [
+   "Anonymous Form Filling"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": false,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "businessID": "bbb8aae57c104cda40c93843ad5e6db8",
+     "formName": "Example Account Registration Form",
+     "formNum": "APP0001",
+     "formDesc": "Example Form Description",
+     "profileFields": [
+      "idNo",
+      "enName",
+      "gender",
+      "chName",
+      "birthDate"
+     ],
+     "eMEFields": [
+      "mobileNumber",
+      "emailAddress",
+      "addressDocInfo"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "obtain-anonymous-form-filling-result",
+  "path": "/api/v2/anonymous/formFilling/getResult",
+  "summary": "Obtain Anonymous Form Filling Result",
+  "tags": [
+   "Anonymous Form Filling"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": false,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D"
+    }
+   }
+  ]
+ },
+ {
+  "id": "request-digital-signing",
+  "path": "/api/v1/account/signing/initiateRequest",
+  "summary": "Request Digital Signing (appv1)",
+  "tags": [
+   "Digital Signing"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": true,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "businessID": "bbb8aae57c104cda40c93843ad5e6db8",
+     "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D",
+     "source": "Android_Chrome",
+     "redirectURI": "https://rp_domain/rp_context/call_back_endpoint",
+     "state": "eddd527b6",
+     "hashCode": "965e638fda4c70f667efc2d68c40c6111e5965bfc82356d",
+     "HKICHash": "6ea37e641260714009a880a8057032a414009a80f667efc",
+     "department": "Digital Policy Office",
+     "serviceName": "Online Service1",
+     "documentName": "Doc0001",
+     "suaMethod": "{\"unary\": [\"FR\"]}"
+    }
+   }
+  ]
+ },
+ {
+  "id": "request-pdf-digital-signing",
+  "path": "/api/v1/account/pdfsigning/initiateRequest",
+  "summary": "Request PDF Digital Signing (appv1)",
+  "tags": [
+   "Digital Signing"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": true,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "businessID": "bbb8aae57c104cda40c93843ad5e6db8",
+     "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D",
+     "source": "Android_Chrome",
+     "redirectURI": "https://rp_domain/rp_context/call_back_endpoint",
+     "state": "eddd527b6",
+     "docDigest": "965e638fda4c70f667efc2d68c40c6111e5965bfc82356d",
+     "HKICHash": "6ea37e641260714009a880a8057032a414009a80f667efc",
+     "department": "Digital Policy Office",
+     "serviceName": "Online Service1",
+     "documentName": "Doc0001",
+     "suaMethod": "{\"unary\": [\"FR\"]}"
+    }
+   }
+  ]
+ },
+ {
+  "id": "request-digital-signing-appv2",
+  "path": "/api/appv2/account/signing/initiateRequest",
+  "summary": "Request Digital Signing (appv2)",
+  "tags": [
+   "Digital Signing"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": true,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "businessID": "bbb8aae57c104cda40c93843ad5e6db8",
+     "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D",
+     "source": "App_Package",
+     "packageName": "com.onlineservice.myapp",
+     "activityClass": "callback_activity",
+     "activityParams": "callback_param",
+     "serverRedirectURI": "https://rp_domain/rp_context/call_back_endpoint",
+     "state": "eddd527b6",
+     "hashCode": "965e638fda4c70f667efc2d68c40c6111e5965bfc82356d",
+     "HKICHash": "6ea37e641260714009a880a8057032a414009a80f667efc",
+     "department": "Digital Policy Office",
+     "serviceName": "Online Service1",
+     "documentName": "Doc0001",
+     "suaMethod": "{\"unary\": [\"FR\"]}"
+    }
+   }
+  ]
+ },
+ {
+  "id": "request-pdf-digital-signing-appv2",
+  "path": "/api/appv2/account/pdfsigning/initiateRequest",
+  "summary": "Request PDF Digital Signing (appv2)",
+  "tags": [
+   "Digital Signing"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": true,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "businessID": "bbb8aae57c104cda40c93843ad5e6db8",
+     "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D",
+     "source": "App_Package",
+     "packageName": "com.onlineservice.myapp",
+     "activityClass": "callback_activity",
+     "activityParams": "callback_param",
+     "serverRedirectURI": "https://rp_domain/rp_context/call_back_endpoint",
+     "state": "eddd527b6",
+     "docDigest": "965e638fda4c70f667efc2d68c40c6111e5965bfc82356d",
+     "HKICHash": "6ea37e641260714009a880a8057032a414009a80f667efc",
+     "department": "Digital Policy Office",
+     "serviceName": "Online Service1",
+     "documentName": "Doc0001",
+     "suaMethod": "{\"unary\": [\"FR\"]}"
+    }
+   }
+  ]
+ },
+ {
+  "id": "acknowledge-signing-result",
+  "path": "/api/v1/account/signing/ackResult",
+  "summary": "Acknowledge Digital Signing Result",
+  "tags": [
+   "Digital Signing",
+   "Anonymous Digital Signing"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": true,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "businessID": "bbb8aae57c104cda40c93843ad5e6db8",
+     "signingResult": "SR001"
+    }
+   }
+  ]
+ },
+ {
+  "id": "request-anonymous-digital-signing",
+  "path": "/api/v1/anonymous/signing/initiateRequest",
+  "summary": "Request Anonymous Digital Signing",
+  "tags": [
+   "Anonymous Digital Signing"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": true,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "businessID": "bbb8aae57c104cda40c93843ad5e6db8",
+     "hashCode": "965e638fda4c70f667efc2d68c40c6111e5965bfc82356d",
+     "HKICHash": "6ea37e641260714009a880a8057032a414009a80f667efc",
+     "department": "Digital Policy Office",
+     "serviceName": "Online Service1",
+     "documentName": "Doc0001",
+     "suaMethod": "{\"unary\": [\"FR\"]}"
+    }
+   }
+  ]
+ },
+ {
+  "id": "request-anonymous-pdf-digital-signing",
+  "path": "/api/v1/anonymous/pdfsigning/initiateRequest",
+  "summary": "Request Anonymous PDF Digital Signing",
+  "tags": [
+   "Anonymous Digital Signing"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": true,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "businessID": "bbb8aae57c104cda40c93843ad5e6db8",
+     "docDigest": "965e638fda4c70f667efc2d68c40c6111e5965bfc82356d",
+     "HKICHash": "6ea37e641260714009a880a8057032a414009a80f667efc",
+     "department": "Digital Policy Office",
+     "serviceName": "Online Service1",
+     "documentName": "Doc0001",
+     "suaMethod": "{\"unary\": [\"FR\"]}"
+    }
+   }
+  ]
+ },
+ {
+  "id": "obtain-anonymous-digital-signing-result",
+  "path": "/api/v1/anonymous/signing/getResult",
+  "summary": "Obtain Anonymous Digital Signing Result",
+  "tags": [
+   "Anonymous Digital Signing"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": true,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D"
+    }
+   }
+  ]
+ },
+ {
+  "id": "obtain-anonymous-pdf-digital-signing-result",
+  "path": "/api/v1/anonymous/pdfsigning/getResult",
+  "summary": "Obtain Anonymous PDF Digital Signing Result",
+  "tags": [
+   "Anonymous Digital Signing"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": true,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D"
+    }
+   }
+  ]
+ },
+ {
+  "id": "request-re-authentication",
+  "path": "/api/v1/account/stepup/initiateRequest",
+  "summary": "Request Re-authentication (appv1)",
+  "tags": [
+   "Re-authentication"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": false,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "businessID": "bbb8aae57c104cda40c93843ad5e6db8",
+     "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D",
+     "source": "Android_Chrome",
+     "redirectURI": "https://rp_domain/rp_context/call_back_endpoint",
+     "state": "eddd527b6"
+    }
+   }
+  ]
+ },
+ {
+  "id": "request-re-authentication-appv2",
+  "path": "/api/appv2/account/stepup/initiateRequest",
+  "summary": "Request Re-authentication (appv2)",
+  "tags": [
+   "Re-authentication"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": false,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "businessID": "bbb8aae57c104cda40c93843ad5e6db8",
+     "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D",
+     "source": "App_Package",
+     "packageName": "com.onlineservice.myapp",
+     "activityClass": "callback_activity",
+     "activityParams": "callback_param",
+     "serverRedirectURI": "https://rp_domain/rp_context/call_back_endpoint",
+     "state": "eddd527b6"
+    }
+   }
+  ]
+ },
+ {
+  "id": "request-bulk-digital-signing",
+  "path": "/api/v1/bdss/account/initiateRequest",
+  "summary": "Request Bulk Digital Signing (appv1)",
+  "tags": [
+   "Bulk Digital Signing"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": false,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "businessID": "bbb8aae57c104cda40c93843ad5e6db8",
+     "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D",
+     "source": "Android_Chrome",
+     "redirectURI": "https://rp_domain/rp_context/call_back_endpoint",
+     "state": "eddd527b6",
+     "callbackResultURI": "https://rp_domain/rp_context/endpoint",
+     "HKICHash": "6ea37e641260714009a880a8057032a414009a80f667efc",
+     "department": "Digital Policy Office",
+     "serviceName": "Online Service 1",
+     "requestName": "Bulk Digital Signing for Contracts",
+     "maxCallbackSigs": 200,
+     "documents": [
+      {
+       "id": "aef…cth",
+       "documentName": "Document",
+       "hashCode": "965e…356d",
+       "sigAlgo": "SHA256withRSA"
+      },
+      {
+       "id": "trx…hnm",
+       "documentName": "PDF Document",
+       "docDigest": "7rtg…y67d"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "request-bulk-digital-signing-appv2",
+  "path": "/api/appv2/bdss/account/initiateRequest",
+  "summary": "Request Bulk Digital Signing (appv2)",
+  "tags": [
+   "Bulk Digital Signing"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": false,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "businessID": "bbb8aae57c104cda40c93843ad5e6db8",
+     "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D",
+     "source": "App_Package",
+     "packageName": "com.onlineservice.myapp",
+     "activityClass": "callback_activity",
+     "activityParams": "callback_param",
+     "serverRedirectURI": "https://rp_domain/rp_context/call_back_endpoint",
+     "state": "eddd527b6",
+     "callbackResultURI": "https://rp_domain/rp_context/endpoint",
+     "HKICHash": "6ea37e641260714009a880a8057032a414009a80f667efc",
+     "department": "Digital Policy Office",
+     "serviceName": "Online Service 1",
+     "requestName": "Bulk Digital Signing for Contracts",
+     "maxCallbackSigs": 200,
+     "documents": [
+      {
+       "id": "aef…cth",
+       "documentName": "Document",
+       "hashCode": "965e…356d",
+       "sigAlgo": "SHA256withRSA"
+      },
+      {
+       "id": "trx…hnm",
+       "documentName": "PDF Document",
+       "docDigest": "7rtg…y67d"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "acknowledge-bulk-signing-result",
+  "path": "/api/v1/bdss/ackResult",
+  "summary": "Acknowledge Bulk Digital Signing Result",
+  "tags": [
+   "Bulk Digital Signing",
+   "Anonymous Bulk Digital Signing"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": false,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Acknowledge all documents",
+    "value": {
+     "businessID": "bbb8aae57c104cda40c93843ad5e6db8",
+     "signingResult": "SR001"
+    }
+   },
+   {
+    "name": "Acknowledge per document",
+    "value": {
+     "businessID": "bbb8aae57c104cda40c93843ad5e6db8",
+     "signingResult": "",
+     "signatures": [
+      {
+       "id": "egh…cva",
+       "signingResult": "SR001"
+      },
+      {
+       "id": "hrf…bnd",
+       "signingResult": "SR002"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "enquire-bulk-signing-status",
+  "path": "/api/v1/bdss/enquireStatus",
+  "summary": "Enquire Bulk Digital Signing Status",
+  "tags": [
+   "Bulk Digital Signing",
+   "Anonymous Bulk Digital Signing"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": false,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "BSQCToken": "nnoadisauflanefhykdjf…f83h96e",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D"
+    }
+   }
+  ]
+ },
+ {
+  "id": "cancel-bulk-signing-request",
+  "path": "/api/v1/bdss/cancelRequest",
+  "summary": "Cancel Bulk Digital Signing Request",
+  "tags": [
+   "Bulk Digital Signing",
+   "Anonymous Bulk Digital Signing"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": false,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "BSQCToken": "nnoadisauflanefhykdjf…f83h96e",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D"
+    }
+   }
+  ]
+ },
+ {
+  "id": "request-anonymous-bulk-digital-signing",
+  "path": "/api/v1/bdss/anonymous/initiateRequest",
+  "summary": "Request Anonymous Bulk Digital Signing",
+  "tags": [
+   "Anonymous Bulk Digital Signing"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": false,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "businessID": "bbb8aae57c104cda40c93843ad5e6db8",
+     "callbackResultURI": "https://rp_domain/rp_context/endpoint",
+     "HKICHash": "6ea37e641260714009a880a8057032a414009a80f667efc",
+     "department": "Digital Policy Office",
+     "serviceName": "Online Service 1",
+     "requestName": "Bulk Digital Signing for Contracts",
+     "maxCallbackSigs": 200,
+     "documents": [
+      {
+       "id": "aef…cth",
+       "documentName": "Document",
+       "hashCode": "965e…356d",
+       "sigAlgo": "SHA256withRSA"
+      },
+      {
+       "id": "trx…hnm",
+       "documentName": "PDF Document",
+       "docDigest": "7rtg…y67d"
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "request-bsqc-token",
+  "path": "/api/v1/bdss/getBSQCToken",
+  "summary": "Request BSQC Token",
+  "tags": [
+   "Anonymous Bulk Digital Signing"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": false,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D"
+    }
+   }
+  ]
+ },
+ {
+  "id": "request-step-up-authentication",
+  "path": "/api/v1/account/sua/initiateRequest",
+  "summary": "Request Step-up Authentication (appv1)",
+  "tags": [
+   "Step-up Authentication"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": true,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "businessID": "bbb8aae57c104cda40c93843ad5e6db8",
+     "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D",
+     "source": "App_Package",
+     "redirectURI": "https://rp_domain/rp_context/call_back_endpoint",
+     "state": "eddd527b6",
+     "suaMethod": "{\"and\": [\"FR\", \"NFC\"]}",
+     "suaMessage": "0001",
+     "suaWaitPeriod": 10
+    }
+   }
+  ]
+ },
+ {
+  "id": "request-step-up-authentication-appv2",
+  "path": "/api/appv2/account/sua/initiateRequestV2",
+  "summary": "Request Step-up Authentication (appv2)",
+  "tags": [
+   "Step-up Authentication"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": true,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "businessID": "bbb8aae57c104cda40c93843ad5e6db8",
+     "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D",
+     "source": "App_Package",
+     "packageName": "com.onlineservice.myapp",
+     "activityClass": "callback_activity",
+     "activityParams": "callback_param",
+     "serverRedirectURI": "https://rp_domain/rp_context/call_back_endpoint",
+     "state": "eddd527b6",
+     "suaMethod": "{\"and\": [\"FR\", \"NFC\"]}",
+     "suaMessage": "0001",
+     "suaWaitPeriod": 10
+    }
+   }
+  ]
+ },
+ {
+  "id": "request-anonymous-step-up-authentication",
+  "path": "/api/v1/anonymous/sua/initiateRequest",
+  "summary": "Request Anonymous Step-up Authentication",
+  "tags": [
+   "Anonymous Step-up Authentication"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": true,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "businessID": "bbb8aae57c104cda40c93843ad5e6db8",
+     "HKICHash": "6ea37e641260714009a880a8057032a414009a80f667efc",
+     "suaMethod": "{\"and\": [\"FR\", \"NFC\"]}",
+     "suaMessage": "0001",
+     "suaWaitPeriod": 10,
+     "identifierCode": "1234"
+    }
+   }
+  ]
+ },
+ {
+  "id": "obtain-anonymous-step-up-authentication-result",
+  "path": "/api/v1/anonymous/sua/getResult",
+  "summary": "Obtain Anonymous Step-up Authentication Result",
+  "tags": [
+   "Anonymous Step-up Authentication"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": true,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D"
+    }
+   }
+  ]
+ },
+ {
+  "id": "obtain-consent-result",
+  "path": "/api/v1/cdeg/getConsentResult",
+  "summary": "Obtain User's Consent Result",
+  "tags": [
+   "CDEG Integration"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": false,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "providerCode": "WSD",
+     "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D"
+    }
+   }
+  ]
+ },
+ {
+  "id": "request-consent",
+  "path": "/api/v1/cdeg/requestConsent",
+  "summary": "Submit CDEG Consent Request",
+  "tags": [
+   "CDEG Integration"
+  ],
+  "deprecated": false,
+  "encrypted": true,
+  "rateLimit": false,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "providerCode": "WSD",
+     "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D",
+     "redirectURI": "https%3A%2F%2Frp_domain%2Frp_context%2Fcall_back_endpoint",
+     "businessID": "b2c99aa83b0049e9ba370c5341681225",
+     "source": "Android_Chrome"
+    }
+   }
+  ]
+ },
+ {
+  "id": "request-profile-v1",
+  "path": "/api/v1/account/auth/profile/initiateRequest",
+  "summary": "Request Profile (v1)",
+  "tags": [
+   "Deprecated APIs"
+  ],
+  "deprecated": true,
+  "encrypted": true,
+  "rateLimit": false,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "businessID": "bbb8aae57c104cda40c93843ad5e6db8",
+     "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D",
+     "source": "Android_Chrome",
+     "redirectURI": "https://rp_domain/rp_context/call_back_endpoint",
+     "state": "eddd527b6",
+     "profileFields": [
+      "idNo",
+      "enName"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "request-form-filling-v1",
+  "path": "/api/v1/account/eme/initiateRequest",
+  "summary": "Request Form Filling (v1)",
+  "tags": [
+   "Deprecated APIs"
+  ],
+  "deprecated": true,
+  "encrypted": true,
+  "rateLimit": false,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "businessID": "bbb8aae57c104cda40c93843ad5e6db8",
+     "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D",
+     "source": "Android_Chrome",
+     "redirectURI": "https://rp_domain/rp_context/call_back_endpoint",
+     "state": "eddd527b6",
+     "formName": "Online Service form Name",
+     "formNum": "FormNO_2019001",
+     "formDesc": "form description",
+     "eMEFields": [
+      "idNo",
+      "enName",
+      "birthDate"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "request-anonymous-form-filling-v1",
+  "path": "/api/v1/anonymous/eme/initiateRequest",
+  "summary": "Request Anonymous Form Filling (v1)",
+  "tags": [
+   "Deprecated APIs"
+  ],
+  "deprecated": true,
+  "encrypted": true,
+  "rateLimit": false,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "businessID": "bbb8aae57c104cda40c93843ad5e6db8",
+     "eMEFields": [
+      "idNo",
+      "enName"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "obtain-anonymous-form-filling-result-v1",
+  "path": "/api/v1/anonymous/eme/getResult",
+  "summary": "Obtain Anonymous Form Filling Result (v1)",
+  "tags": [
+   "Deprecated APIs"
+  ],
+  "deprecated": true,
+  "encrypted": true,
+  "rateLimit": false,
+  "kind": "post",
+  "method": "POST",
+  "examples": [
+   {
+    "name": "Example",
+    "value": {
+     "accessToken": "xxxa42e76bf4cb0846a68e6d83d6096",
+     "openID": "liR14%2BvX%2F5hSum5uf4ERczu0KcDnIJA5BM7FoM1ag9c%3D"
+    }
+   }
+  ]
+ },
+ {
+  "id": "auth-code-callback",
+  "kind": "callback-get",
+  "method": "GET",
+  "summary": "Callback with authCode to Online Service Server",
+  "deprecated": false,
+  "example": null
+ },
+ {
+  "id": "direct-login-v2-callback",
+  "kind": "callback-get",
+  "method": "GET",
+  "summary": "Callback with authCode (Direct Login v2)",
+  "deprecated": false,
+  "example": null
+ },
+ {
+  "id": "form-filling-callback",
+  "kind": "callback-json",
+  "method": "POST",
+  "summary": "Callback to Receive Form Filling Information (JSON)",
+  "deprecated": false,
+  "example": {
+   "businessID": "2YotnFZFEjr1zCsicMWpAA",
+   "idNo": {
+    "Identification": "A123456",
+    "CheckDigit": "A"
+   },
+   "prefix": "Mr",
+   "enName": {
+    "UnstructuredName": "SAN, Chi Nan"
+   },
+   "chName": {
+    "ChineseName": "申智能"
+   },
+   "chNameVerified": "申智能",
+   "birthDate": "19960128",
+   "gender": "M",
+   "maritalStatus": "S",
+   "mobileNumber": {
+    "CountryCode": "1",
+    "SubscriberNumber": "98765432"
+   },
+   "emailAddress": "scn@digitalpolicy.gov.hk",
+   "residentialAddress": {
+    "FreeFormatAddress": {
+     "LanguageCode": "en",
+     "AddressLine1": "Unit 2000, 200/F",
+     "AddressLine2": "5033 Yitian Road, Futian CBD",
+     "AddressLine3": "Futian district, Shenzhen"
+    }
+   },
+   "postalAddress": {
+    "PostBoxAddress": {
+     "EngPostBox": {
+      "PoBoxNo": 24700,
+      "PostOffice": "ABERDEEN POST OFFICE",
+      "PostOfficeRegion": "HONG KONG"
+     }
+    }
+   },
+   "educationLevel": "T",
+   "addressDocInfo": {
+    "enProviderName": "HK Electric",
+    "tcProviderName": "港燈",
+    "scProviderName": "港灯",
+    "enUserName": "SAN, Chi Nan",
+    "tcUserName": "申智能",
+    "enServiceAddress": {
+     "addressLine1": "19/F, 213 Queen's Road East",
+     "addressLine2": "Wanchai, Hong Kong"
+    },
+    "lastRetrievalDate": 1560853718006
+   }
+  }
+ },
+ {
+  "id": "form-filling-callback-multipart",
+  "kind": "callback-multipart",
+  "method": "POST",
+  "summary": "Callback to Receive Form Filling Information (multipart)",
+  "deprecated": false,
+  "example": null
+ },
+ {
+  "id": "signing-result-callback",
+  "kind": "callback-json",
+  "method": "POST",
+  "summary": "Callback to Receive Digital Signing Result",
+  "deprecated": false,
+  "example": {
+   "businessID": "2YotnFZFEjr1zCsicMWpAA",
+   "state": "unesidkd",
+   "hashCode": "tGzv3JOkF0XG5Qx2TlKWIA",
+   "timestamp": 1556450176000,
+   "signature": "nnoadisauflanefhykdjf",
+   "cert": "sdfGSDGsdfaGDEHfjslgGQG……GSGjljlkjwmh"
+  }
+ },
+ {
+  "id": "pdf-signing-result-callback",
+  "kind": "callback-json",
+  "method": "POST",
+  "summary": "Callback to Receive PDF Digital Signing Result",
+  "deprecated": false,
+  "example": {
+   "businessID": "2YotnFZFEjr1zCsicMWpAA",
+   "state": "unesidkd",
+   "docDigest": "tGzv3JOkF0XG5Qx2TlKWIA",
+   "pdfSignature": "sdfGSDGsdfaGDEHfjslgGQG……GSGjljlkjwmh"
+  }
+ },
+ {
+  "id": "re-authentication-result-callback",
+  "kind": "callback-json",
+  "method": "POST",
+  "summary": "Callback to Receive Re-authentication Result",
+  "deprecated": false,
+  "example": {
+   "businessID": "3e47be25-66a6-43fb-89f6-7e2dd138aff8",
+   "state": "unesidkd",
+   "isPassed": true
+  }
+ },
+ {
+  "id": "bsqc-token-callback",
+  "kind": "callback-json",
+  "method": "POST",
+  "summary": "Callback to Receive BSQC Token",
+  "deprecated": false,
+  "example": {
+   "businessID": "2YotnFZFEjr1zCsicMWpAA",
+   "state": "unesidkd",
+   "BSQCToken": "nnoadisauflanefhykdjf…f83h96e"
+  }
+ },
+ {
+  "id": "bulk-signing-result-callback",
+  "kind": "callback-multipart",
+  "method": "POST",
+  "summary": "Callback to Receive Bulk Digital Signing Result",
+  "deprecated": false,
+  "example": null
+ },
+ {
+  "id": "step-up-authentication-result-callback",
+  "kind": "callback-json",
+  "method": "POST",
+  "summary": "Callback to Receive Step-up Authentication Result",
+  "deprecated": false,
+  "example": {
+   "businessID": "3e47be25-66a6-43fb-89f6-7e2dd138aff8",
+   "state": "unesidkd",
+   "isPassed": true
+  }
+ },
+ {
+  "id": "cdeg-consent-result-callback",
+  "kind": "callback-json",
+  "method": "POST",
+  "summary": "Callback With CDEG Consent Result",
+  "deprecated": false,
+  "example": {
+   "businessID": "3e47be25-66a6-43fb-89f6-7e2dd138aff8",
+   "state": "unesidkd",
+   "consentResult": true
+  }
+ },
+ {
+  "id": "profile-callback-v1",
+  "kind": "callback-json",
+  "method": "POST",
+  "summary": "Callback to Receive iAM Smart Profile (v1)",
+  "deprecated": true,
+  "example": {
+   "businessID": "3e47be25-66a6-43fb-89f6-7e2dd138aff8",
+   "state": "unesidkd",
+   "idNo": {
+    "Identification": "A123456",
+    "CheckDigit": "A"
+   },
+   "enName": {
+    "UnstructuredName": "SAN, Chi Nan"
+   },
+   "gender": "M"
+  }
+ }
+]

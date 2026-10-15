@@ -19,6 +19,10 @@ export default defineConfig({
       logo: { src: './src/assets/logo.svg', alt: 'iAM Smart API docs' },
       favicon: '/favicon.svg',
       customCss: ['./src/styles/custom.css'],
+      components: {
+        // Injects the interactive "Try it" console into every API reference page.
+        MarkdownContent: './src/components/overrides/MarkdownContent.astro',
+      },
       lastUpdated: false,
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/booker-dragon/iam-smart-docs' }],
       editLink: { baseUrl: 'https://github.com/booker-dragon/iam-smart-docs/edit/main/' },

@@ -2,11 +2,12 @@
 // Interactive: decrypt response content, unwrap a CEK, or decrypt a full callback.
 interface Props {
   showTitle?: boolean
+  initialTab?: 'content' | 'cek' | 'callback'
 }
-const { showTitle = true } = Astro.props
+const { showTitle = true, initialTab = 'content' } = Astro.props
 ---
 
-<ist-decrypt class="ist not-content">
+<ist-decrypt class="ist not-content" data-initial-tab={initialTab}>
   {showTitle && <h3 class="ist-title" id="decryptor">Decrypt responses &amp; callbacks</h3>}
   <p class="ist-note">
     Runs locally in your browser. Only paste <strong>test-environment</strong> private keys. The spec says the CEK is wrapped with “RSA” without
@@ -65,6 +66,7 @@ const { showTitle = true } = Astro.props
 <script>
   import { decryptCallback, decryptContent, unwrapCek } from '../lib/iam-smart-crypto.js'
   import { setStatus, show, wireCopyButtons } from '../lib/ui.js'
+  import { state } from '../lib/console-state.js'
 
   function pretty(text: string) {
     try {
@@ -97,6 +99,14 @@ const { showTitle = true } = Astro.props
           setStatus(el('status'), '')
         })
       })
+
+      // Pre-fill from the API console session (private key only if the user chose to keep it in this tab).
+      const pem = state.secrets().privateKeyPem
+      if (pem && !el('pem').value) el('pem').value = pem
+      const cek = state.session().cek
+      if (cek && !el('contentCek').value) el('contentCek').value = cek
+      const initial = this.dataset.initialTab
+      if (initial && initial !== 'content') this.querySelector<HTMLButtonElement>(`[data-tab=${initial}]`)?.click()
 
       el('go').addEventListener('click', async () => {
         const status = el('status')

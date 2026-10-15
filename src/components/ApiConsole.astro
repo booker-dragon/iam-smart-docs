@@ -1,0 +1,582 @@
+---
+// "Try it" console shown at the top of every API reference page (injected by overrides/MarkdownContent.astro).
+// POST operations: sign, encrypt, send, decrypt. getQR: URL builder. Callbacks: parse or decrypt what you received.
+import DecryptTool from './DecryptTool.astro'
+import GetQrBuilder from './GetQrBuilder.astro'
+import { ENVIRONMENTS } from '../lib/console-state.js'
+
+interface ConsoleItem {
+  id: string
+  kind: 'post' | 'getqr' | 'callback-get' | 'callback-json' | 'callback-multipart'
+  method: string
+  path?: string
+  summary: string
+  deprecated?: boolean
+  encrypted?: boolean
+  rateLimit?: boolean
+  examples?: { name: string; value: unknown }[]
+  example?: unknown
+}
+interface Props {
+  item: ConsoleItem
+}
+const { item } = Astro.props
+const isPost = item.kind === 'post'
+const isGetKey = item.path === '/api/v1/security/getKey'
+const needsCek = isPost && item.path !== '/api/v1/security/revokeKey'
+const summaryText = {
+  post: 'Try it — sign, encrypt and send this request',
+  getqr: 'Try it — build the QR page URL',
+  'callback-get': 'Try it — read the callback you received',
+  'callback-json': 'Try it — decrypt a callback you received',
+  'callback-multipart': 'Try it — decrypt a callback you received',
+}[item.kind]
+---
+
+<ist-console class="ist api-console not-content" data-item={JSON.stringify(item)}>
+  <details data-el="details">
+    <summary><span class="api-console-badge">Try it</span> {summaryText}</summary>
+
+    {item.deprecated && (
+      <p class="ist-status" data-kind="error">This API was shut down on 31 December 2025 — requests will fail on the real gateway.</p>
+    )}
+
+    {isPost && (
+      <Fragment>
+        <p class="ist-note">
+          Runs in your browser: the request is signed and encrypted here and sent straight to the gateway you pick — nothing goes through this site.
+          Use <strong>test</strong> credentials. The real gateway may block browser calls (CORS); if so, copy the curl command, or run the
+          <a href="/guides/mock-server/">local mock</a> which accepts them.
+        </p>
+
+        <fieldset>
+          <legend>Connection</legend>
+          <div class="ist-grid">
+            <label>Gateway
+              <select data-el="env">
+                {ENVIRONMENTS.map((e) => <option value={e.id}>{e.label}</option>)}
+              </select>
+            </label>
+            <label data-el="customRow" class="ist-hidden">Base URL <input type="text" data-el="customUrl" placeholder="https://…" spellcheck="false" /></label>
+            <label>clientID <input type="text" data-el="clientId" autocomplete="off" spellcheck="false" /></label>
+            <label>Client secret <input type="password" data-el="secret" autocomplete="off" spellcheck="false" /></label>
+          </div>
+          <label class="ist-inline"><input type="checkbox" data-el="keep" /> Keep the secret and private key in this tab (sessionStorage) so other API pages can use them</label>
+        </fieldset>
+
+        {needsCek && (
+          <fieldset>
+            <legend>Content encryption key (CEK)</legend>
+            <p class="ist-status" data-el="cekStatus"></p>
+            <details data-el="pemDetails">
+              <summary>KEK private key — needed to fetch a CEK or unwrap callbacks</summary>
+              <div class="ist-grid">
+                <label>Private key (PEM, unencrypted, test only)
+                  <textarea data-el="pem" rows="4" spellcheck="false" placeholder="-----BEGIN PRIVATE KEY-----"></textarea>
+                </label>
+                <label>RSA padding
+                  <select data-el="padding">
+                    <option value="auto">Auto (PKCS#1 v1.5 → OAEP)</option>
+                    <option value="pkcs1">PKCS#1 v1.5</option>
+                    <option value="oaep-sha1">OAEP SHA-1</option>
+                    <option value="oaep-sha256">OAEP SHA-256</option>
+                  </select>
+                </label>
+              </div>
+            </details>
+            <div class="ist-grid">
+              <label>…or paste a CEK (Base64) <input type="text" data-el="cek" autocomplete="off" spellcheck="false" /></label>
+            </div>
+            {!isGetKey && <div class="ist-actions"><button type="button" class="ist-secondary" data-el="fetchCek">Fetch CEK from gateway</button></div>}
+          </fieldset>
+        )}
+
+        {item.encrypted && (
+          <Fragment>
+            {item.examples && item.examples.length > 1 && (
+              <label>Example
+                <select data-el="exampleSel">
+                  {item.examples.map((e, i) => <option value={String(i)}>{e.name}</option>)}
+                </select>
+              </label>
+            )}
+            <label>Request body — plain JSON, encrypted when sent
+              <textarea data-el="body" rows="10" spellcheck="false"></textarea>
+            </label>
+            <p class="ist-note" data-el="filled"></p>
+          </Fragment>
+        )}
+
+        {item.rateLimit && (
+          <fieldset>
+            <legend>rateLimitFactor header</legend>
+            <div class="ist-checks">
+              <label class="ist-inline"><input type="checkbox" data-el="rlf" checked /> send</label>
+              <label class="ist-inline"><input type="checkbox" data-el="rlfFR" checked /> FR</label>
+              <label class="ist-inline"><input type="checkbox" data-el="rlfNFC" checked /> NFC</label>
+            </div>
+          </fieldset>
+        )}
+
+        <div class="ist-actions">
+          <button type="button" data-el="send">Send request</button>
+          <button type="button" class="ist-secondary" data-el="build">Build only</button>
+          {item.encrypted && <button type="button" class="ist-secondary" data-el="reset">Reset body</button>}
+        </div>
+        <p class="ist-status" data-el="status" role="status"></p>
+
+        <div data-el="responseWrap" class="ist-hidden">
+          <div class="ist-output">
+            <h4>Response <span data-el="codeInfo"></span></h4>
+            <pre data-el="response"></pre>
+            <button type="button" class="ist-copy" data-copy-target="[data-el=response]">Copy</button>
+          </div>
+          <p class="ist-note ist-hidden" data-el="codeLinkWrap">
+            Look up this code in <a data-el="codeLink" href="/reference/return-codes/">Return codes</a>.
+          </p>
+        </div>
+
+        <details data-el="requestWrap" class="ist-hidden">
+          <summary>Request that was built</summary>
+          <div class="ist-output">
+            <h4>HTTP</h4>
+            <pre data-el="http"></pre>
+            <button type="button" class="ist-copy" data-copy-target="[data-el=http]">Copy</button>
+          </div>
+          <div class="ist-output">
+            <h4>curl</h4>
+            <pre data-el="curl"></pre>
+            <button type="button" class="ist-copy" data-copy-target="[data-el=curl]">Copy</button>
+          </div>
+        </details>
+      </Fragment>
+    )}
+
+    {item.kind === 'getqr' && (
+      <Fragment>
+        <p class="ist-note">
+          This is a browser redirect, not an API call. Build the URL, then open it: the user approves in iAM Smart and is redirected to your
+          <code>redirectURI</code> with <code>code</code> and <code>state</code>. With the local mock you can use the
+          <a href="/api/webhooks/auth-code-callback/">authCode callback page</a> as the redirect URI to read the result here.
+        </p>
+        <GetQrBuilder showTitle={false} />
+      </Fragment>
+    )}
+
+    {item.kind === 'callback-get' && (
+      <Fragment>
+        <p class="ist-note">
+          Paste the URL your callback endpoint received (or land on this page with <code>?code=…&amp;state=…</code>). The code is saved for
+          <a href="/api/operations/request-access-token/">Request accessToken</a>, which pre-fills it — exchange it within a minute.
+        </p>
+        <label>Callback URL or query string
+          <textarea data-el="cbUrl" rows="3" spellcheck="false" placeholder="https://your.service/iamsmart/callback?code=…&amp;state=…"></textarea>
+        </label>
+        <label>Expected state <small>the value you sent; filled automatically if you built the getQR URL on this site</small>
+          <input type="text" data-el="expectedState" spellcheck="false" />
+        </label>
+        <div class="ist-actions">
+          <button type="button" data-el="parse">Read callback</button>
+          <a class="ist-hidden" data-el="exchangeLink" href="/api/operations/request-access-token/">Exchange the code →</a>
+        </div>
+        <p class="ist-status" data-el="status" role="status"></p>
+        <div class="ist-output ist-hidden" data-el="parsedWrap"><pre data-el="parsed"></pre></div>
+      </Fragment>
+    )}
+
+    {(item.kind === 'callback-json' || item.kind === 'callback-multipart') && (
+      <Fragment>
+        {item.kind === 'callback-multipart' && (
+          <p class="ist-note">
+            This callback is <code>multipart/form-data</code>. Paste the JSON part (it carries <code>secretKey</code>) to decrypt it; the other part is
+            encrypted with the same CEK, shown after decryption — use it in the <em>Response content</em> tab.
+          </p>
+        )}
+        <DecryptTool showTitle={false} initialTab="callback" />
+        <details>
+          <summary>Send a test callback to your server with the local mock</summary>
+          <p class="ist-note">The mock encrypts this content with your KEK and POSTs it to the URL, like iAM Smart would.</p>
+          <div class="ist-grid">
+            <label>Mock URL <input type="text" data-el="mockUrl" value="http://localhost:8787" spellcheck="false" /></label>
+            <label>Your callback URL <input type="text" data-el="targetUrl" placeholder="http://localhost:3000/iamsmart/callback" spellcheck="false" /></label>
+          </div>
+          <label>Decrypted content to send
+            <textarea data-el="cbContent" rows="8" spellcheck="false">{item.example ? JSON.stringify(item.example, null, 2) : '{}'}</textarea>
+          </label>
+          <div class="ist-actions"><button type="button" data-el="sendCallback">Send test callback</button></div>
+          <p class="ist-status" data-el="status" role="status"></p>
+        </details>
+      </Fragment>
+    )}
+
+    <details data-el="sessionWrap" class="api-console-session">
+      <summary>Session values <span data-el="sessionCount"></span></summary>
+      <p class="ist-note">Captured from responses in this tab and used to pre-fill other API pages.</p>
+      <pre data-el="session"></pre>
+      <div class="ist-actions"><button type="button" class="ist-secondary" data-el="clearSession">Clear session values</button></div>
+    </details>
+  </details>
+</ist-console>
+
+<script>
+  import { buildRequest, decryptContent, unwrapCek } from '../lib/iam-smart-crypto.js'
+  import { baseUrl, canSend, captureFromResponse, cekValid, fillExample, parseCallbackUrl, state } from '../lib/console-state.js'
+  import { setStatus, show, wireCopyButtons } from '../lib/ui.js'
+
+  const time = (ms: number) => new Date(ms).toLocaleTimeString()
+  const short = (v: unknown) => (typeof v === 'string' && v.length > 48 ? `${v.slice(0, 20)}…${v.slice(-12)}` : v)
+
+  class IstConsole extends HTMLElement {
+    item: any
+    el(name: string): any {
+      return this.querySelector(`[data-el=${name}]`)
+    }
+
+    connectedCallback() {
+      this.item = JSON.parse(this.dataset.item ?? '{}')
+      wireCopyButtons(this)
+      this.renderSession()
+      this.el('clearSession')?.addEventListener('click', () => {
+        state.clearSession()
+        this.renderSession()
+        this.renderCek()
+      })
+      // Open automatically when the page was reached with callback parameters.
+      if (this.item.kind === 'callback-get' && location.search.includes('code=')) this.el('details').open = true
+      if (this.item.kind === 'post') this.setupPost()
+      if (this.item.kind === 'callback-get') this.setupCallbackGet()
+      if (this.item.kind === 'callback-json' || this.item.kind === 'callback-multipart') this.setupCallbackJson()
+    }
+
+    renderSession() {
+      const s = state.session()
+      const shown: Record<string, unknown> = {}
+      for (const [k, v] of Object.entries(s)) {
+        if (k === 'cek') shown[k] = '(hidden)'
+        else if (k.endsWith('ExpiresAt')) shown[k] = time(Number(v))
+        else shown[k] = short(v)
+      }
+      const n = Object.keys(s).length
+      this.el('session').textContent = n ? JSON.stringify(shown, null, 2) : 'Nothing captured yet.'
+      this.el('sessionCount').textContent = n ? `(${n})` : ''
+    }
+
+    // ---- POST operations -------------------------------------------------------------
+    setupPost() {
+      const settings = state.settings()
+      const secrets = state.secrets()
+      this.el('env').value = settings.env
+      this.el('customUrl').value = settings.customUrl
+      this.el('clientId').value = settings.clientId
+      this.el('secret').value = secrets.clientSecret
+      this.el('keep').checked = secrets.keep
+      if (this.el('pem')) this.el('pem').value = secrets.privateKeyPem
+
+      const syncEnv = () => {
+        show(this.el('customRow'), this.el('env').value === 'custom')
+        const s = { env: this.el('env').value, customUrl: this.el('customUrl').value.trim() }
+        state.saveSettings(s)
+        const sendOk = canSend({ ...state.settings(), ...s })
+        this.el('send').disabled = !sendOk
+        this.el('send').title = sendOk ? '' : 'Sending to production from a browser is disabled — use Build only'
+      }
+      this.el('env').addEventListener('change', syncEnv)
+      this.el('customUrl').addEventListener('change', syncEnv)
+      this.el('clientId').addEventListener('change', () => state.saveSettings({ clientId: this.el('clientId').value.trim() }))
+      const saveSecrets = () =>
+        state.saveSecrets({ clientSecret: this.el('secret').value, privateKeyPem: this.el('pem')?.value ?? state.secrets().privateKeyPem, keep: this.el('keep').checked })
+      this.el('secret').addEventListener('change', saveSecrets)
+      this.el('keep').addEventListener('change', saveSecrets)
+      this.el('pem')?.addEventListener('change', saveSecrets)
+      syncEnv()
+
+      this.el('cek')?.addEventListener('change', () => {
+        const v = this.el('cek').value.trim()
+        state.saveSession({ cek: v, cekExpiresAt: undefined })
+        this.renderCek()
+        this.renderSession()
+      })
+      this.el('fetchCek')?.addEventListener('click', () => this.run(() => this.fetchCek()))
+      this.renderCek()
+
+      this.el('exampleSel')?.addEventListener('change', () => this.loadExample())
+      this.el('reset')?.addEventListener('click', () => this.loadExample())
+      if (this.item.encrypted) this.loadExample()
+
+      this.el('send').addEventListener('click', () => this.run(() => this.send(true)))
+      this.el('build').addEventListener('click', () => this.run(() => this.send(false)))
+    }
+
+    renderCek() {
+      const status = this.el('cekStatus')
+      if (!status) return
+      const s = state.session()
+      if (cekValid(s)) {
+        setStatus(status, s.cekExpiresAt ? `CEK cached — valid until ${time(s.cekExpiresAt)}.` : 'CEK set (pasted).', 'ok')
+        if (this.el('cek') && !this.el('cek').value) this.el('cek').value = s.cek
+      } else {
+        setStatus(status, 'No CEK yet. Paste one, or add your KEK private key and fetch it.', 'info')
+      }
+    }
+
+    loadExample() {
+      const idx = Number(this.el('exampleSel')?.value ?? 0)
+      const example = this.item.examples?.[idx]?.value ?? {}
+      const { body, filled } = fillExample(example, state.session())
+      this.el('body').value = JSON.stringify(body, null, 2)
+      this.el('filled').textContent = filled.length
+        ? `Filled from this session: ${filled.join(', ')}. businessID and state are fresh random values.`
+        : 'Example values from the spec. businessID and state are fresh random values; replace placeholders such as accessToken with real ones.'
+    }
+
+    connection() {
+      const settings = { ...state.settings(), env: this.el('env').value, customUrl: this.el('customUrl').value.trim() }
+      const clientId = this.el('clientId').value.trim()
+      const clientSecret = this.el('secret').value
+      if (!clientId || !clientSecret) throw new Error('Enter your clientID and client secret')
+      return { url: baseUrl(settings), clientId, clientSecret, settings }
+    }
+
+    timestamp() {
+      // The gateway rejects timestamps that go backwards; keep them strictly increasing per tab.
+      const last = Number(state.session().lastTimestamp ?? 0)
+      const ts = Math.max(Date.now(), last + 1)
+      state.saveSession({ lastTimestamp: ts })
+      return ts
+    }
+
+    async fetchCek() {
+      const { url, clientId, clientSecret, settings } = this.connection()
+      if (!canSend(settings)) throw new Error('Pick a gateway you can send to (not production)')
+      const pem = this.el('pem').value.trim()
+      if (!pem) {
+        this.el('pemDetails').open = true
+        throw new Error('Paste your KEK private key to unwrap the CEK')
+      }
+      const req = await buildRequest({ clientId, clientSecret, timestamp: this.timestamp() })
+      const res = await this.post(`${url}/api/v1/security/getKey`, req)
+      if (res.code !== 'D00000') throw new Error(`${res.code} ${res.message}`)
+      const { cekBase64, padding } = await unwrapCek(pem, res.content.secretKey, this.el('padding').value)
+      state.saveSession({ cek: cekBase64, cekExpiresAt: Number(res.content.issueAt) + Number(res.content.expiresIn) })
+      this.el('cek').value = cekBase64
+      this.renderCek()
+      this.renderSession()
+      setStatus(this.el('status'), `CEK fetched and unwrapped (${padding}).`, 'ok')
+    }
+
+    async post(url: string, req: { headers: Record<string, string>; body: string }) {
+      let response: Response
+      try {
+        response = await fetch(url, { method: 'POST', headers: req.headers, body: req.body || undefined, mode: 'cors' })
+      } catch {
+        throw new Error(
+          'The browser could not reach the gateway or it refused a cross-origin request (CORS). Use “Build only” and run the curl command, or try the local mock.',
+        )
+      }
+      const text = await response.text()
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${text.slice(0, 200)}`)
+      try {
+        return JSON.parse(text)
+      } catch {
+        throw new Error(`Unexpected response: ${text.slice(0, 200)}`)
+      }
+    }
+
+    async send(really: boolean) {
+      const status = this.el('status')
+      const { url, clientId, clientSecret, settings } = this.connection()
+      const path = this.item.path
+      let body: any
+      if (this.item.encrypted) {
+        try {
+          body = JSON.parse(this.el('body').value)
+        } catch {
+          throw new Error('The request body is not valid JSON')
+        }
+      }
+      const cek = this.el('cek')?.value.trim() || state.session().cek
+      if (this.item.encrypted && !cek) throw new Error('Set a CEK first (fetch it, or paste one)')
+      const values = [this.el('rlfFR')?.checked && 'FR', this.el('rlfNFC')?.checked && 'NFC'].filter(Boolean)
+      const rateLimitFactor = this.item.rateLimit && this.el('rlf')?.checked ? { key: 'suaMethod', value: values } : undefined
+      const req = await buildRequest({ clientId, clientSecret, cekBase64: cek, body, timestamp: this.timestamp(), rateLimitFactor })
+
+      const full = `${url}${path}`
+      const q = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`
+      this.el('http').textContent = [`POST ${full}`, ...Object.entries(req.headers).map(([k, v]) => `${k}: ${v}`), '', req.body].join('\n')
+      this.el('curl').textContent = [
+        `curl -X POST ${q(full)}`,
+        ...Object.entries(req.headers).map(([k, v]) => `  -H ${q(`${k}: ${v}`)}`),
+        ...(req.body ? [`  --data-raw ${q(req.body)}`] : []),
+      ].join(' \\\n')
+      show(this.el('requestWrap'), true)
+
+      if (!really) {
+        this.el('requestWrap').open = true
+        setStatus(status, 'Request built. Timestamp and nonce are single use — build again before each send.', 'ok')
+        return
+      }
+      if (!canSend(settings)) throw new Error('Sending to production from a browser is disabled')
+
+      setStatus(status, 'Sending…', 'info')
+      const res = await this.post(full, req)
+      let content = res.content
+      let note = ''
+      if (typeof content === 'string' && content) {
+        try {
+          content = JSON.parse(await decryptContent(content, cek))
+          note = ' (content decrypted)'
+        } catch (e: any) {
+          note = ` (could not decrypt content: ${e.message})`
+        }
+      }
+      if (path === '/api/v1/security/getKey' && res.code === 'D00000') {
+        const pem = this.el('pem')?.value.trim() || state.secrets().privateKeyPem
+        if (pem) {
+          try {
+            const { cekBase64 } = await unwrapCek(pem, content.secretKey, this.el('padding')?.value ?? 'auto')
+            if (this.el('cek')) this.el('cek').value = cekBase64
+            state.saveSession({ cek: cekBase64, cekExpiresAt: Number(content.issueAt) + Number(content.expiresIn) })
+            note = ' (CEK unwrapped and saved)'
+          } catch {
+            /* keep the raw response */
+          }
+        }
+      }
+      if (path === '/api/v1/security/revokeKey' && res.code === 'D00000') state.saveSession({ cek: '', cekExpiresAt: undefined })
+
+      if (res.code === 'D00000') {
+        const captured = captureFromResponse(content, body)
+        if (Object.keys(captured).length) state.saveSession(captured)
+      }
+      this.renderSession()
+      this.renderCek()
+
+      const shown = content === undefined ? res : { ...res, content }
+      this.el('response').textContent = JSON.stringify(shown, null, 2)
+      this.el('codeInfo').textContent = `— ${res.code}`
+      const link = this.el('codeLink')
+      link.href = `${link.getAttribute('href').split('?')[0]}?code=${encodeURIComponent(res.code)}`
+      show(this.el('codeLinkWrap'), res.code !== 'D00000')
+      show(this.el('responseWrap'), true)
+      const hint = res.code === 'D30002' || res.code === 'D30001' ? ' Fetch a new CEK and send again.' : ''
+      setStatus(status, `${res.code === 'D00000' ? 'Success' : 'Gateway returned an error'}${note}.${hint}`, res.code === 'D00000' ? 'ok' : 'error')
+    }
+
+    async run(fn: () => Promise<void>) {
+      const buttons = [...this.querySelectorAll<HTMLButtonElement>('button')]
+      buttons.forEach((b) => (b.dataset.wasDisabled = String(b.disabled)))
+      buttons.forEach((b) => (b.disabled = true))
+      try {
+        await fn()
+      } catch (e: any) {
+        setStatus(this.el('status'), e.message ?? String(e), 'error')
+      } finally {
+        buttons.forEach((b) => (b.disabled = b.dataset.wasDisabled === 'true'))
+      }
+    }
+
+    // ---- authCode callbacks (GET) ------------------------------------------------------
+    setupCallbackGet() {
+      const session = state.session()
+      if (session.expectedState) this.el('expectedState').value = session.expectedState
+      if (location.search && /[?&](code|error_code)=/.test(location.search)) {
+        this.el('cbUrl').value = location.href
+        this.parseCallback()
+      }
+      this.el('parse').addEventListener('click', () => this.parseCallback())
+    }
+
+    parseCallback() {
+      const status = this.el('status')
+      const parsed = parseCallbackUrl(this.el('cbUrl').value)
+      if (!parsed) {
+        show(this.el('parsedWrap'), false)
+        setStatus(status, 'No code, state or error_code found in that URL.', 'error')
+        return
+      }
+      const clean = Object.fromEntries(Object.entries(parsed).filter(([, v]) => v))
+      this.el('parsed').textContent = JSON.stringify(clean, null, 2)
+      show(this.el('parsedWrap'), true)
+      const expected = this.el('expectedState').value.trim()
+      if (parsed.error_code) {
+        show(this.el('exchangeLink'), false)
+        setStatus(status, `The user or gateway returned error ${parsed.error_code}. See Return codes.`, 'error')
+        return
+      }
+      if (expected && parsed.state !== expected) {
+        show(this.el('exchangeLink'), false)
+        setStatus(status, `state mismatch: expected “${expected}”, got “${parsed.state ?? ''}”. Do not trust this callback.`, 'error')
+        return
+      }
+      state.saveSession({ code: parsed.code, code_verifier: parsed.code_verifier })
+      this.renderSession()
+      show(this.el('exchangeLink'), true)
+      setStatus(status, `${expected ? 'state matches. ' : ''}Code saved — exchange it within ${this.item.id === 'direct-login-v2-callback' ? '30 seconds' : 'a minute'}.`, 'ok')
+    }
+
+    // ---- encrypted callbacks (POST) ------------------------------------------------------
+    setupCallbackJson() {
+      this.el('sendCallback').addEventListener('click', async () => {
+        const status = this.el('status')
+        try {
+          const target = this.el('targetUrl').value.trim()
+          if (!target) throw new Error('Enter your callback URL')
+          const content = JSON.parse(this.el('cbContent').value || '{}')
+          const mock = this.el('mockUrl').value.trim().replace(/\/+$/, '')
+          let r: Response
+          try {
+            r = await fetch(`${mock}/__mock/callback`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: target, content }) })
+          } catch {
+            throw new Error('Could not reach the mock. Is it running (npm run mock)?')
+          }
+          const out = await r.json()
+          setStatus(status, out.status ? `Mock delivered the callback; your server answered HTTP ${out.status}.` : `Mock error: ${out.error ?? r.status}`, out.status === 200 ? 'ok' : 'error')
+        } catch (e: any) {
+          setStatus(status, e.message, 'error')
+        }
+      })
+    }
+  }
+  if (!customElements.get('ist-console')) customElements.define('ist-console', IstConsole)
+</script>
+
+<style>
+  .api-console {
+    margin-block: 0 1.5rem;
+  }
+  .api-console > details > summary {
+    cursor: pointer;
+    font-weight: 600;
+    list-style-position: inside;
+  }
+  .api-console > details[open] > summary {
+    margin-bottom: 0.75rem;
+  }
+  .api-console > details > * + * {
+    margin-top: 0.75rem;
+  }
+  .api-console-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.1rem 0.5rem;
+    margin-right: 0.35rem;
+    border-radius: 999px;
+    background: var(--sl-color-accent);
+    color: var(--sl-color-black);
+  }
+  :global(:root[data-theme='light']) .api-console-badge {
+    color: #fff;
+  }
+  .api-console :global(.ist) {
+    border: none;
+    padding: 0;
+    margin: 0;
+    background: none;
+  }
+  .api-console-session pre {
+    font-size: 0.75rem;
+  }
+</style>

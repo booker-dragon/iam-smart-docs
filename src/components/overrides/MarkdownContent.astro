@@ -1,0 +1,15 @@
+---
+// Adds the "Try it" console to the top of every generated API operation and callback page.
+import Default from '@astrojs/starlight/components/MarkdownContent.astro'
+import ApiConsole from '../ApiConsole.astro'
+import consoleItems from '../../data/api-console.json'
+
+const base = import.meta.env.BASE_URL.replace(/\/+$/, '')
+let path = Astro.url.pathname
+if (base && path.startsWith(base)) path = path.slice(base.length)
+const match = path.match(/^\/api\/(operations|webhooks)\/([^/]+)\/?(?:index\.html)?$/)
+const item = match ? (consoleItems as any[]).find((i) => i.id === match[2] && (match[1] === 'webhooks') === i.kind.startsWith('callback')) : undefined
+---
+
+{item && <ApiConsole item={item} />}
+<Default><slot /></Default>

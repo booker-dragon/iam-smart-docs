@@ -15,7 +15,7 @@ info:
     2. **Every POST body is encrypted** with AES-256-GCM using a content encryption key (CEK) from [Request CEK](/api/operations/request-cek/). Request and response bodies in this reference are shown **decrypted**; on the wire they are `{"content": "<Base64>"}`. See [Encryption](/security/encryption/).
     3. **Business errors return HTTP 200** with a non-`D00000` `code`. See [Return codes](/reference/return-codes/).
 
-    Because of the signing and encryption, a generic "Try it" console cannot call these APIs. Use the [developer tools](/tools/) to sign, encrypt and decrypt test messages in your browser, and the [reference client](/guides/client/) in your server code.
+    Every operation and callback page has a **Try it** console at the top that signs, encrypts and sends the request from your browser and decrypts the response — against the testing gateway or the [local mock](/guides/mock-server/). See also the [developer tools](/tools/) and, for server code, the [reference client](/guides/client/).
 
     This is an unofficial rendering for developer convenience. The PDF specification remains authoritative.
   contact:

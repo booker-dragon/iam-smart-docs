@@ -105,8 +105,16 @@ function business(path, body) {
 }
 
 // ---- HTTP -------------------------------------------------------------------------
+// CORS (and Chrome's Private Network Access) so the "Try it" consoles on the docs site can call the mock.
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, clientID, signatureMethod, timestamp, nonce, signature, rateLimitFactor',
+  'Access-Control-Allow-Private-Network': 'true',
+  'Access-Control-Max-Age': '600',
+}
 function send(res, status, obj, headers = {}) {
-  res.writeHead(status, { 'Content-Type': 'application/json', ...headers })
+  res.writeHead(status, { 'Content-Type': 'application/json', ...CORS, ...headers })
   res.end(typeof obj === 'string' ? obj : JSON.stringify(obj))
 }
 function readBody(req) {
@@ -145,6 +153,11 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`)
   const path = url.pathname
 
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, CORS)
+    return res.end()
+  }
+
   if (req.method === 'GET' && path === '/api/v1/auth/getQR') {
     const p = Object.fromEntries(url.searchParams)
     for (const k of ['clientID', 'responseType', 'source', 'redirectURI', 'scope'])
@@ -158,7 +171,7 @@ const server = http.createServer(async (req, res) => {
     const deny = new URL(p.redirectURI)
     deny.searchParams.set('error_code', 'D40001')
     if (p.state) deny.searchParams.set('state', p.state)
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', ...CORS })
     return res.end(`<!doctype html><meta name=viewport content="width=device-width"><title>Mock iAM Smart</title>
 <body style="font-family:system-ui;max-width:28rem;margin:3rem auto;padding:0 1rem">
 <h1>Mock iAM Smart</h1><p>Scope: <code>${p.scope}</code>${anonymous ? ` · ticket <code>${p.ticketID}</code>` : ''}</p>

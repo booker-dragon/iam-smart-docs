@@ -19,6 +19,7 @@ const { showTitle = true } = Astro.props
     <label>Environment
       <select name="env" data-el="env">
         {Object.values(environments).map((e) => <option value={`https://${e.domain}`}>{e.label} — {e.domain}</option>)}
+        <option value="http://localhost:8787">Local mock — localhost:8787</option>
       </select>
     </label>
     <label>clientID <input type="text" name="clientId" data-el="clientId" autocomplete="off" spellcheck="false" /></label>
@@ -56,11 +57,16 @@ const { showTitle = true } = Astro.props
     <pre data-el="url"></pre>
     <button type="button" class="ist-copy" data-copy-target="[data-el=url]">Copy</button>
   </div>
+  <div class="ist-actions">
+    <a data-el="open" href="#" target="_blank" rel="noopener">Open this URL in a new tab →</a>
+  </div>
+  <p class="ist-note" data-el="sessionNote"></p>
 </ist-getqr>
 
 <script>
   import { randomState } from '../lib/iam-smart-crypto.js'
   import { detectSource, persist, setStatus, wireCopyButtons } from '../lib/ui.js'
+  import { state } from '../lib/console-state.js'
 
   class IstGetQr extends HTMLElement {
     connectedCallback() {
@@ -68,6 +74,12 @@ const { showTitle = true } = Astro.props
       persist('ist-getqr', [el('env'), el('clientId'), el('source'), el('redirectURI'), el('lang'), el('brokerPage')])
       wireCopyButtons(this)
       el('state').value = randomState()
+      // Reuse a ticketID captured by an anonymous initiate request in this tab.
+      const session = state.session()
+      if (session.ticketID && !el('ticketID').value) {
+        el('ticketID').value = session.ticketID
+        el('sessionNote').textContent = 'ticketID filled from your last anonymous request in this tab.'
+      }
 
       const render = () => {
         const p = new URLSearchParams()
@@ -82,7 +94,11 @@ const { showTitle = true } = Astro.props
         if (el('state').value.trim()) p.set('state', el('state').value.trim())
         if (el('brokerPage').checked) p.set('brokerPage', 'true')
         // The spec's examples encode spaces as %20, not "+".
-        el('url').textContent = `${el('env').value}/api/v1/auth/getQR?${p.toString().replace(/\+/g, '%20')}`
+        const url = `${el('env').value}/api/v1/auth/getQR?${p.toString().replace(/\+/g, '%20')}`
+        el('url').textContent = url
+        el('open').href = url
+        // Remember the state so the authCode callback page can check it.
+        state.saveSession({ expectedState: el('state').value.trim() })
         const problems = []
         if (!scope) problems.push('select at least one scope')
         if (!/^[A-Za-z0-9_-]{0,36}$/.test(el('state').value.trim())) problems.push('state may only contain letters, numbers, _ and - (max 36)')

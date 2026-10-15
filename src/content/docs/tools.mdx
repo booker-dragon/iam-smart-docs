@@ -11,7 +11,7 @@ import GetQrBuilder from '../../components/GetQrBuilder.astro'
 import DeepLinkBuilder from '../../components/DeepLinkBuilder.astro'
 import ReturnCodeLookup from '../../components/ReturnCodeLookup.astro'
 
-The iAM Smart gateway only accepts signed, encrypted requests, so a generic “Try it” console can't call it. These tools cover the same need: produce exactly what the gateway expects and read what it sends back.
+The iAM Smart gateway only accepts signed, encrypted requests. These tools produce exactly what it expects and read what it sends back. To send a request for a specific API, use the **Try it** console at the top of its page in the [API reference](/api/) — it shares your CEK, tokens and other session values across pages.
 
 <Aside type="caution" title="Your secrets stay here">
   All tools run in this page with the browser's Web Crypto API. Nothing you type is uploaded. Still, use **testing-environment** credentials and keys only. Non-secret fields (client ID, endpoint, environment) are remembered in this browser for convenience.
